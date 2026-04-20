@@ -379,6 +379,7 @@ textarea{resize:vertical;min-height:72px;}
       <button class="nbtn" data-p="aicoach" onclick="go('aicoach')"><span class="nico">🤖</span>AI Coach</button>
       <button class="nbtn" data-p="community" onclick="go('community')"><span class="nico">💬</span>Community</button>
       <button class="nbtn" data-p="podcasts" onclick="go('podcasts')"><span class="nico">🎙️</span>Podcast Hub</button>
+      <button class="nbtn" data-p="hub" onclick="go('hub')"><span class="nico">📖</span>Knowledge Hub</button>
       <button class="nbtn" data-p="partners" onclick="go('partners')"><span class="nico">🤝</span>Partners</button>
       <button class="nbtn" data-p="coaches" onclick="go('coaches')"><span class="nico">🏫</span>Find a Coach</button>
       <button class="nbtn" data-p="marketplace" onclick="go('marketplace')"><span class="nico">🏪</span>Marketplace</button>
@@ -1200,7 +1201,7 @@ function closeSb(){$('sidebar').classList.remove('open');$('sbov').classList.rem
 
 // PAGE REGISTRY — all pages registered here
 var PAGES={};
-var PTITLES={dashboard:'Dashboard',journey:'90×90 Journey',academy:'Financial Academy',library:'Book Library',calculator:'FIRE Calculator',networth:'Net Worth Tracker',goals:'Goals & Roadmap',income:'Income Streams',aicoach:'AI Coach',community:'Community',partners:'Partners',coaches:'Find a Coach',marketplace:'Marketplace',achievements:'Achievements',reports:'Reports & KPIs',pricing:'Plans & Pricing',budget:'Budget Planner',vision:'Vision Board',podcasts:'Podcast Hub',feedback:'Feedback & Support',settings:'Settings'};
+var PTITLES={dashboard:'Dashboard',journey:'90×90 Journey',academy:'Financial Academy',library:'Book Library',calculator:'FIRE Calculator',networth:'Net Worth Tracker',goals:'Goals & Roadmap',income:'Income Streams',aicoach:'AI Coach',community:'Community',partners:'Partners',coaches:'Find a Coach',marketplace:'Marketplace',achievements:'Achievements',reports:'Reports & KPIs',pricing:'Plans & Pricing',budget:'Budget Planner',vision:'Vision Board',podcasts:'Podcast Hub',feedback:'Feedback & Support',settings:'Settings',hub:'Knowledge Hub'};
 
 function go(name){
   if(!PAGES[name]){
@@ -1417,6 +1418,8 @@ var ROOM_MSGS={
   students:[{u:'Amara N.',av:'👩🏾',msg:'17 years old and just opened my first Cowrywise account with ₦5,000!',t:'1 hr ago'},{u:'Temi B.',av:'👨🏾',msg:'Learning about compound interest in academy. Mind blown. Starting NOW.',t:'4 hrs ago'}],
 };
 var curRoom=null;
+var currentBook=null;
+var currentPodcast=null;
 var roomMsgs={};
 
 var COACHES=[
@@ -1608,6 +1611,135 @@ function saveCustomRoom(){
   S.custom_rooms.push({id:id,name:name.trim(),desc:desc.trim(),icon:icon,created:new Date().toISOString(),messages:[]});
   saveS();closeModal();go('community');
   showToast('Room "'+name+'" created! 🎉');
+}
+
+// ── KNOWLEDGE HUB HELPERS ─────────────────────────────────────
+
+function showHubPostForm(type, refId, refTitle){
+  var isPro=S.tier!=='free';
+  var myCount=(S.hub_discussions||[]).filter(function(x){return x.author===firstName();}).length;
+  if(!isPro && myCount>=3){showToast('Upgrade to Pro for unlimited posts');go('pricing');return;}
+
+  var cats=['📚 Book Review','🎙️ Podcast','💡 Insight','📰 Article','🔥 Must Read','❓ Question','💬 Discussion'];
+  var defaultCat = type==='book'?'📚 Book Review':type==='podcast'?'🎙️ Podcast':'💡 Insight';
+
+  var formHtml='<div style="margin-bottom:10px">'
+    +'<label style="font-size:11px;letter-spacing:2px;color:var(--mu);display:block;margin-bottom:5px">CATEGORY</label>'
+    +'<select id="hub-cat" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:13px">'
+    +cats.map(function(cat){return '<option value="'+cat+'"'+(cat===defaultCat?' selected':'')+'>'+cat+'</option>';}).join('')
+    +'</select></div>'
+    +'<div style="margin-bottom:10px">'
+    +'<label style="font-size:11px;letter-spacing:2px;color:var(--mu);display:block;margin-bottom:5px">TITLE <span style="color:var(--red)">*</span></label>'
+    +'<input type="text" id="hub-title" placeholder="e.g. The Millionaire Next Door changed my spending habits" value="'+(refTitle?'Discussion: '+refTitle:'')+'" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:13px;box-sizing:border-box"/></div>'
+    +'<div style="margin-bottom:10px">'
+    +'<label style="font-size:11px;letter-spacing:2px;color:var(--mu);display:block;margin-bottom:5px">YOUR REVIEW / INSIGHT <span style="color:var(--red)">*min 50 chars</span></label>'
+    +'<textarea id="hub-body" rows="5" placeholder="Share what you learned, what changed, what you recommend and why. Be specific — the community values real insights over general praise." style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:13px;resize:none;line-height:1.6;box-sizing:border-box"></textarea></div>';
+
+  showModal('Share with Knowledge Hub', formHtml,
+    '<div style="display:flex;gap:8px">'
+    +'<button class="btn bg bfull" onclick="submitHubPost(\''+type+'\',\''+refId+'\')">Post to Hub</button>'
+    +'<button class="btn bgh" onclick="closeModal()">Cancel</button>'
+    +'</div>'
+  );
+}
+
+function submitHubPost(type, refId){
+  var cat=($('hub-cat')||{}).value||'💡 Insight';
+  var title=($('hub-title')||{}).value||'';
+  var body=($('hub-body')||{}).value||'';
+  if(!title.trim()){showToast('Please add a title');return;}
+  if(body.trim().length<50){showToast('Please write at least 50 characters');return;}
+  if(!S.hub_discussions)S.hub_discussions=[];
+  var newPost={
+    id:'hd'+Date.now(),
+    cat:cat,
+    title:title.trim(),
+    author:firstName(),
+    av:'👤',
+    time:'just now',
+    body:body.trim(),
+    likes:0,
+    comments:[],
+    bookId:type==='book'?refId:null,
+    podId:type==='podcast'?refId:null
+  };
+  S.hub_discussions.push(newPost);
+  saveS();
+  closeModal();
+  showToast('Posted to Knowledge Hub! 🔥');
+  go('hub');
+}
+
+function openHubDiscussion(disc){
+  var isPro=S.tier!=='free';
+  var comments=disc.comments||[];
+  var content='<div style="margin-bottom:14px">'
+    +'<span style="font-size:11px;padding:3px 9px;background:rgba(0,217,139,.1);border-radius:12px;color:var(--g2);font-weight:700">'+disc.cat+'</span>'
+    +'</div>'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:10px;line-height:1.4">'+disc.title+'</div>'
+    +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:12px">'
+    +'<div style="width:26px;height:26px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:11px">'+(disc.av||'👤')+'</div>'
+    +'<span style="font-size:12px;color:var(--mu)">'+disc.author+' · '+disc.time+'</span></div>'
+    +'<div style="font-size:13px;color:var(--w3);line-height:1.75;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--br)">'+disc.body+'</div>';
+
+  // Comments
+  if(comments.length>0){
+    content+='<div style="font-size:13px;font-weight:700;margin-bottom:10px">💬 '+comments.length+(comments.length===1?' Reply':' Replies')+'</div>';
+    comments.forEach(function(cm){
+      content+='<div style="background:var(--s2);border-radius:var(--r2);padding:10px;margin-bottom:8px">'
+        +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">'
+        +'<div style="width:22px;height:22px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:10px">'+(cm.av||'👤')+'</div>'
+        +'<span style="font-size:12px;font-weight:700;color:var(--g2)">'+cm.u+'</span>'
+        +'<span style="font-size:10px;color:var(--mu);margin-left:auto">'+cm.t+'</span></div>'
+        +'<div style="font-size:13px;color:var(--w3);line-height:1.6">'+cm.msg+'</div></div>';
+    });
+  } else {
+    content+='<div style="text-align:center;padding:20px;color:var(--mu);font-size:13px">No replies yet. Be the first!</div>';
+  }
+
+  // Reply box for Pro users
+  if(isPro){
+    content+='<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--br)">'
+      +'<textarea id="hub-reply-box" rows="3" placeholder="Share your thoughts, your own experience, or build on what was said..." style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:13px;resize:none;box-sizing:border-box;line-height:1.6"></textarea>'
+      +'<button onclick="submitHubReply(\''+disc.id+'\')" class="btn bg" style="width:100%;margin-top:8px">Post Reply</button>'
+      +'</div>';
+  } else {
+    content+='<div class="co cog" style="margin-top:12px;font-size:12px">🔒 <a onclick="closeModal();go(\'pricing\')" style="color:var(--g2);cursor:pointer">Upgrade to Pro</a> to reply to discussions.</div>';
+  }
+
+  showModal(disc.cat, content,
+    '<div style="display:flex;gap:8px">'
+    +'<button onclick="likeHubPost(\''+disc.id+'\');closeModal()" class="btn bgh bsm">❤️ '+(disc.likes||0)+'</button>'
+    +'<button onclick="closeModal()" class="btn bgh" style="flex:1">Close</button>'
+    +'</div>'
+  );
+}
+
+function submitHubReply(discId){
+  var box=$('hub-reply-box');
+  if(!box||!box.value.trim()){showToast('Please write something first');return;}
+  var disc=S.hub_discussions&&S.hub_discussions.find(function(d){return d.id===discId;});
+  if(!disc)return;
+  if(!disc.comments)disc.comments=[];
+  disc.comments.push({u:firstName(),av:'👤',msg:box.value.trim(),t:'just now',likes:0});
+  saveS();
+  closeModal();
+  showToast('Reply posted! 🔥');
+  go('hub');
+}
+
+function likeHubPost(discId){
+  if(S.tier==='free'){showToast('Upgrade to Pro to like posts');return;}
+  var disc=S.hub_discussions&&S.hub_discussions.find(function(d){return d.id===discId;});
+  if(!disc)return;
+  disc.likes=(disc.likes||0)+1;
+  saveS();
+  go('hub');
+}
+
+function replyHubPost(discId){
+  var disc=S.hub_discussions&&S.hub_discussions.find(function(d){return d.id===discId;});
+  if(disc)openHubDiscussion(disc);
 }
 function toggleWkCard(i){
   var form=document.getElementById('wkform'+i);
@@ -1929,19 +2061,91 @@ PAGES['library'] = function(){
 };
 function openBook(id){
   var b=BOOKS.filter(function(x){return x.id===id;})[0];if(!b)return;
-  if(!b.f&&S.tier==='free'){showModal('🔒 Pro Required','<p style="color:var(--mu);margin-bottom:13px">Upgrade to Pro (₦5,000/month) to unlock all 13 book summaries.</p><button class="btn bg bfull" onclick="closeModal();go(\'pricing\')">Upgrade to Pro →</button>');return;}
+  if(!b.f&&S.tier==='free'){
+    showModal('🔒 Pro Required','<p style="color:var(--mu);margin-bottom:13px">Upgrade to Pro to unlock all 13 book summaries.</p><button class="btn bg bfull" onclick="closeModal();go(\'pricing\')">Upgrade to Pro →</button>');
+    return;
+  }
   checkBadge('first-book');
-  var isDone=S.books_done&&S.books_done[b.id];
-  var buyH=Object.entries(b.buy||{}).map(function(e){var k=e[0],v=e[1];var lbl={amazon:'🛒 Amazon',kindle:'📱 Kindle',okadabooks:'📚 OkadaBooks',selar:'🛒 Selar',local:'🏪 Local'};return v.startsWith('http')?'<a href="'+v+'" target="_blank" class="btn bgh bsm" style="margin:3px 4px 3px 0;font-size:11.5px">'+(lbl[k]||k)+'</a>':'<div style="font-size:12px;color:var(--mu);margin-top:5px;padding:6px 9px;background:var(--s2);border-radius:var(--r3)">'+(lbl[k]||k)+': '+v+'</div>';}).join('');
-  showModal('📚 '+b.t,
-    '<div style="font-size:12px;color:var(--g2);font-weight:700;margin-bottom:6px">'+b.a+' · '+b.c+'</div>'
-    +'<div style="padding:10px;background:var(--gd);border-radius:var(--r3);margin-bottom:12px;font-size:13px;font-style:italic;color:var(--w3)">'+b.why+'</div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--g2);margin-bottom:9px">Key Lessons</div>'
-    +b.lessons.map(function(l,i){return '<div style="margin-bottom:10px;padding:10px;background:var(--s2);border-radius:var(--r3)"><div style="display:flex;gap:8px"><span style="color:var(--g2);font-weight:700;font-size:13px;flex-shrink:0">'+(i+1)+'.</span><div><div style="font-size:13px;font-weight:700;margin-bottom:3px">'+l.l+'</div><div style="font-size:12.5px;color:var(--w3);line-height:1.65">'+l.e+'</div></div></div></div>';}).join('')
-    +'<div style="padding:11px;background:var(--ed);border-radius:var(--r3);margin:12px 0;border-left:3px solid var(--em)"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--em);margin-bottom:4px">Action Step</div><div style="font-size:13px;color:var(--w3)">'+b.action+'</div></div>'
-    +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--br)"><div style="font-size:12px;font-weight:700;color:var(--w3);margin-bottom:7px">📖 Get the Full Book:</div><div style="display:flex;flex-wrap:wrap">'+buyH+'</div></div>',
-    '<div style="display:flex;gap:9px">'+(isDone?'<button class="btn bgh" onclick="closeModal()">✓ Read</button>':'<button class="btn be" onclick="markBook(\''+b.id+'\')">✓ Mark Read (+25 XP)</button>')+'<button class="btn bgh" onclick="closeModal()">Close</button></div>');
+  showBookDetail(b, 'summary');
 }
+
+function showBookDetail(b, activeTab){currentBook=b;
+  if(!activeTab)activeTab='summary';
+  var isDone=S.books_done&&S.books_done[b.id];
+  var buyH=Object.entries(b.buy||{}).map(function(e){
+    var k=e[0],v=e[1];
+    var lbl={amazon:'🛒 Amazon',kindle:'📱 Kindle',okadabooks:'📚 OkadaBooks',selar:'🛒 Selar',local:'🏪 Local'};
+    return v.startsWith('http')
+      ?'<a href="'+v+'" target="_blank" class="btn bgh bsm" style="margin:3px 4px 3px 0;font-size:11.5px">'+(lbl[k]||k)+'</a>'
+      :'<div style="font-size:12px;color:var(--mu);margin-top:5px;padding:6px 9px;background:var(--s2);border-radius:var(--r3)">'+(lbl[k]||k)+': '+v+'</div>';
+  }).join('');
+
+  // Tab buttons
+  var tabs='<div style="display:flex;gap:6px;margin-bottom:14px">';
+  ['summary','discussion'].forEach(function(tab){
+    var active=tab===activeTab;
+    tabs+='<button onclick="showBookDetail(currentBook,\''+tab+'\')" style="flex:1;padding:8px;border-radius:var(--r2);border:1.5px solid '
+      +(active?'var(--g2)':'var(--br)')+';background:'+(active?'rgba(0,217,139,.1)':'transparent')
+      +';color:'+(active?'var(--g2)':'var(--mu)')+';font-size:13px;font-weight:700;cursor:pointer">'
+      +(tab==='summary'?'📖 Summary':'💬 Discussions')+'</button>';
+  });
+  tabs+='</div>';
+
+  var content='';
+  if(activeTab==='summary'){
+    content=tabs
+      +'<div style="font-size:12px;color:var(--g2);font-weight:700;margin-bottom:6px">'+b.a+' · '+b.c+'</div>'
+      +'<div style="padding:10px;background:var(--gd);border-radius:var(--r3);margin-bottom:12px;font-size:13px;font-style:italic;color:var(--w3)">'+b.why+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--g2);margin-bottom:9px">Key Lessons</div>'
+      +b.lessons.map(function(l,i){return '<div style="margin-bottom:10px;padding:10px;background:var(--s2);border-radius:var(--r3)"><div style="display:flex;gap:8px"><span style="color:var(--g2);font-weight:700;font-size:13px;flex-shrink:0">'+(i+1)+'.</span><div><div style="font-size:13px;font-weight:700;margin-bottom:3px">'+l.l+'</div><div style="font-size:12.5px;color:var(--w3);line-height:1.65">'+l.e+'</div></div></div></div>';}).join('')
+      +'<div style="padding:11px;background:var(--ed);border-radius:var(--r3);margin:12px 0;border-left:3px solid var(--em)"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--em);margin-bottom:4px">Action Step</div><div style="font-size:13px;color:var(--w3)">'+b.action+'</div></div>'
+      +'<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--br)"><div style="font-size:12px;font-weight:700;color:var(--w3);margin-bottom:7px">📖 Get the Full Book:</div><div style="display:flex;flex-wrap:wrap">'+buyH+'</div></div>';
+  } else {
+    // Discussion tab
+    var discussions=(S.hub_discussions||[]).filter(function(d){return d.bookId===b.id;});
+    var isPro=S.tier!=='free';
+    content=tabs
+      +'<div style="margin-bottom:12px"><div style="font-size:14px;font-weight:700;margin-bottom:4px">Community Discussions — '+b.t+'</div>'
+      +'<div style="font-size:12px;color:var(--mu)">What did you learn? What changed for you? Share with the community.</div></div>';
+    if(isPro){
+      content+='<button onclick="showHubPostForm(\'book\',\''+b.id+'\',\''+b.t+'\')" style="width:100%;padding:10px;background:var(--gd);border:none;border-radius:var(--r2);color:#000;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">+ Share Your Review or Insight</button>';
+    } else {
+      content+='<div class="co cog" style="margin-bottom:12px;font-size:12px">🔒 <a onclick="closeModal();go(\'pricing\')" style="color:var(--g2);cursor:pointer">Upgrade to Pro</a> to post reviews. Free users can read all discussions.</div>';
+    }
+    if(discussions.length===0){
+      content+='<div style="text-align:center;padding:30px;color:var(--mu);font-size:13px">No discussions yet for this book.<br>Be the first to share your review!</div>';
+    } else {
+      discussions.forEach(function(disc){
+        var comments=disc.comments||[];
+        content+='<div style="background:var(--s2);border-radius:var(--r2);padding:13px;margin-bottom:10px;border:1px solid var(--br)">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px">'+(disc.av||'👤')+'</div>'
+          +'<div><div style="font-size:13px;font-weight:700">'+disc.author+'</div><div style="font-size:10px;color:var(--mu)">'+disc.time+'</div></div>'
+          +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;background:rgba(0,217,139,.1);border-radius:10px;color:var(--g2)">'+disc.cat+'</span>'
+          +'</div>'
+          +'<div style="font-size:13px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+disc.body+'</div>'
+          +'<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--mu);padding-top:8px;border-top:1px solid var(--br)">'
+          +'<span>❤️ '+( disc.likes||0)+'</span>'
+          +'<span>💬 '+comments.length+' replies</span>'
+          +(isPro?'<button onclick="likeHubPost(\''+disc.id+'\')" style="margin-left:auto;background:transparent;border:1px solid var(--br);border-radius:10px;padding:3px 10px;color:var(--mu);cursor:pointer;font-size:11px">❤️ Like</button>':'')
+          +(isPro?'<button onclick="replyHubPost(\''+disc.id+'\')" style="background:transparent;border:1px solid var(--br);border-radius:10px;padding:3px 10px;color:var(--mu);cursor:pointer;font-size:11px">↩ Reply</button>':'')
+          +'</div>'
+          +(comments.length>0?'<div style="margin-top:10px;padding-left:12px;border-left:2px solid var(--br)">'
+            +comments.map(function(cm){return '<div style="margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:var(--g2)">'+cm.u+'</span> <span style="font-size:11px;color:var(--mu)">'+cm.t+'</span><div style="font-size:12.5px;color:var(--w3);margin-top:2px">'+cm.msg+'</div></div>';}).join('')
+            +'</div>':'')
+          +'</div>';
+      });
+    }
+  }
+
+  showModal('📚 '+b.t, content,
+    '<div style="display:flex;gap:9px">'
+    +(isDone?'<button class="btn bgh" onclick="closeModal()">✓ Read</button>'
+      :'<button class="btn be" onclick="markBook(\''+b.id+'\')">✓ Mark Read (+25 XP)</button>')
+    +'<button class="btn bgh" onclick="closeModal()">Close</button></div>'
+  );
+}
+
 function markBook(id){
   if(!S.books_done)S.books_done={};
   if(!S.books_done[id]){S.books_done[id]=true;addXP(25,'Book completed');
@@ -2154,7 +2358,6 @@ function sendChat(){
 PAGES['community'] = function(){
   var customRooms = S.custom_rooms || [];
 
-  // If a room is selected, render it
   if(curRoom){
     var cr=customRooms.find(function(r){return 'cr_'+r.id===curRoom;});
     if(cr) return renderCustomRoom(cr);
@@ -2165,88 +2368,334 @@ PAGES['community'] = function(){
   var FREE_LIMIT = 2;
 
   if(S.tier==='free'){
-    // Header
     var hdr=el('div');
     hdr.innerHTML='<div class="pt" style="margin-bottom:4px">Community</div>'
-      +'<div style="font-size:13px;color:var(--mu);margin-bottom:10px">'
-      +(ROOMS.reduce(function(s,r){return s+r.m;},0).toLocaleString())
-      +'+ Freedom Seekers across '+ROOMS.length+' rooms.</div>'
-      +'<div class="co cog" style="margin-bottom:14px;font-size:13px">🆓 <strong>Free access:</strong> '
-      +'You can join the 2 rooms below. <strong style="color:var(--g2)">Upgrade to Pro</strong> for all 10 rooms + create custom rooms.</div>';
+      +'<div style="font-size:13px;color:var(--mu);margin-bottom:10px">'+(ROOMS.reduce(function(s,r){return s+r.m;},0).toLocaleString())+'+ Freedom Seekers across '+ROOMS.length+' rooms.</div>'
+      +'<div class="co cog" style="margin-bottom:14px;font-size:13px">🆓 <strong>Free access:</strong> You can join the 2 rooms below. <strong style="color:var(--g2)">Upgrade to Pro</strong> for all rooms, reactions, replies and custom rooms.</div>';
     d.appendChild(hdr);
 
-    // Free rooms - DOM buttons with proper onclick
-    var freeGrid = el('div');
-    freeGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px';
+    var freeGrid=el('div');
+    freeGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px';
     ROOMS.slice(0,FREE_LIMIT).forEach(function(room){
-      var card = el('div','rcard');
-      card.style.cursor = 'pointer';
-      card.innerHTML = '<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
+      var card=el('div','rcard'); card.style.cursor='pointer';
+      card.innerHTML='<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
         +'<div style="flex:1"><div style="font-size:14px;font-weight:700">'+room.n+'</div>'
         +'<div style="font-size:12px;color:var(--mu)">'+room.d+'</div></div>'
         +'<div class="badge be2">'+room.m+'</div>';
-      (function(rid){ card.onclick = function(){ curRoom=rid; go('community'); }; })(room.id);
+      (function(rid){card.onclick=function(){curRoom=rid;go('community');};})(room.id);
       freeGrid.appendChild(card);
     });
     d.appendChild(freeGrid);
 
-    // Locked rooms preview
-    var lockedLbl = el('div');
-    lockedLbl.style.cssText = 'font-size:12px;font-weight:700;color:var(--mu);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase';
-    lockedLbl.textContent = '🔒 Pro Rooms — Upgrade to Unlock';
+    var lockedLbl=el('div');
+    lockedLbl.style.cssText='font-size:12px;font-weight:700;color:var(--mu);margin-bottom:8px;letter-spacing:1px;text-transform:uppercase';
+    lockedLbl.textContent='🔒 Pro Rooms';
     d.appendChild(lockedLbl);
-    var lockedGrid = el('div');
-    lockedGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;opacity:.3;margin-bottom:16px;pointer-events:none';
+    var lockedGrid=el('div');
+    lockedGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;opacity:.3;margin-bottom:16px;pointer-events:none';
     ROOMS.slice(FREE_LIMIT).forEach(function(room){
-      var card = el('div','rcard');
-      card.innerHTML = '<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
+      var card=el('div','rcard');
+      card.innerHTML='<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
         +'<div style="flex:1"><div style="font-size:14px;font-weight:700">'+room.n+'</div>'
         +'<div style="font-size:12px;color:var(--mu)">'+room.d+'</div></div>'
         +'<div class="badge be2">'+room.m+'</div>';
       lockedGrid.appendChild(card);
     });
     d.appendChild(lockedGrid);
-
-    var upBtn = el('button','btn bg blg');
-    upBtn.style.cssText = 'width:100%';
-    upBtn.textContent = 'Upgrade to Pro — ₦5,000/mo 🔥';
-    upBtn.onclick = function(){ go('pricing'); };
+    var upBtn=el('button','btn bg blg');
+    upBtn.style.width='100%';
+    upBtn.textContent='Upgrade to Pro — ₦5,000/mo 🔥';
+    upBtn.onclick=function(){go('pricing');};
     d.appendChild(upBtn);
     return d;
   }
 
-  // PRO — all rooms + custom
-  var allRooms = ROOMS.concat(customRooms.map(function(cr){
-    return {id:'cr_'+cr.id,i:cr.icon||'💬',n:cr.name,d:cr.desc||'Custom community',m:(cr.messages||[]).length+5};
+  // Pro — all rooms + custom
+  var allRooms=ROOMS.concat(customRooms.map(function(cr){
+    return {id:'cr_'+cr.id,i:cr.icon||'💬',n:cr.name,d:cr.desc||'Custom room',m:(cr.messages||[]).length+5};
   }));
-
-  var topRow = el('div');
-  topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
-  topRow.innerHTML = '<div><div class="pt" style="margin-bottom:2px">Community</div>'
-    +'<div style="font-size:13px;color:var(--mu)">'
-    +(allRooms.reduce(function(s,r){return s+(r.m||0);},0).toLocaleString())
-    +'+ Freedom Seekers · '+allRooms.length+' rooms</div></div>';
-  var createBtn = el('button','btn bg bsm');
-  createBtn.textContent = '+ Create Room';
-  createBtn.onclick = createCustomRoom;
+  var topRow=el('div');
+  topRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
+  topRow.innerHTML='<div><div class="pt" style="margin-bottom:2px">Community</div>'
+    +'<div style="font-size:13px;color:var(--mu)">'+(allRooms.reduce(function(s,r){return s+(r.m||0);},0).toLocaleString())+'+ Freedom Seekers · '+allRooms.length+' rooms</div></div>';
+  var createBtn=el('button','btn bg bsm');
+  createBtn.textContent='+ Create Room';
+  createBtn.onclick=createCustomRoom;
   topRow.appendChild(createBtn);
   d.appendChild(topRow);
-
-  var grid = el('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px';
+  var grid=el('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px';
   allRooms.forEach(function(room){
-    var card = el('div','rcard');
-    card.style.cursor = 'pointer';
-    card.innerHTML = '<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
+    var card=el('div','rcard'); card.style.cursor='pointer';
+    card.innerHTML='<div style="font-size:24px;flex-shrink:0">'+room.i+'</div>'
       +'<div style="flex:1"><div style="font-size:14px;font-weight:700;margin-bottom:2px">'+room.n+'</div>'
       +'<div style="font-size:12px;color:var(--mu)">'+room.d+'</div></div>'
       +'<div class="badge be2">'+room.m+'</div>';
-    (function(rid){ card.onclick = function(){ curRoom=rid; go('community'); }; })(room.id);
+    (function(rid){card.onclick=function(){curRoom=rid;go('community');};})(room.id);
     grid.appendChild(card);
   });
   d.appendChild(grid);
   return d;
 };
+
+// ── Room rendering with reactions, reply, tagging ──────────────
+var replyingTo = null;
+
+function renderRoom(roomId){
+  var room=ROOMS.find(function(r){return r.id===roomId;});
+  if(!room){curRoom=null;return PAGES['community']();}
+  if(!roomMsgs[roomId])roomMsgs[roomId]=(ROOM_MSGS[roomId]||[]).map(function(m){
+    return {id:m.u+'_'+m.t, u:m.u, av:m.av, msg:m.msg, t:m.t, reactions:{}, replyTo:null};
+  });
+  var msgs=roomMsgs[roomId];
+  var isPro=S.tier!=='free';
+  var d=el('div','au');
+  d.style.cssText='display:flex;flex-direction:column;height:calc(100vh - 120px)';
+
+  // Header
+  var hdr=el('div');
+  hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-shrink:0';
+  var back=el('button','btn bgh bsm');back.textContent='← Back';
+  back.onclick=function(){curRoom=null;replyingTo=null;go('community');};
+  var info=el('div');
+  info.innerHTML='<div style="font-size:16px;font-weight:700">'+room.i+' '+room.n+'</div>'
+    +'<div style="font-size:11px;color:var(--mu)">'+room.m+' members</div>';
+  hdr.appendChild(back);hdr.appendChild(info);d.appendChild(hdr);
+
+  // Messages
+  var msgBox=el('div');msgBox.id='rmsgs';
+  msgBox.style.cssText='flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:11px;min-height:0';
+
+  msgs.forEach(function(m, mi){
+    var isMe=m.isMe;
+    var row=el('div');
+    row.style.cssText='display:flex;flex-direction:column;max-width:85%;'+(isMe?'align-self:flex-end;align-items:flex-end':'align-items:flex-start');
+
+    // Reply context
+    if(m.replyTo){
+      var refEl=el('div');
+      refEl.style.cssText='font-size:11px;color:var(--mu);background:var(--s3);border-left:2px solid var(--g2);padding:4px 8px;border-radius:4px;margin-bottom:3px;max-width:100%';
+      refEl.textContent='↩ '+m.replyTo;
+      row.appendChild(refEl);
+    }
+
+    // Avatar + bubble row
+    var bubbleRow=el('div');
+    bubbleRow.style.cssText='display:flex;gap:8px;align-items:flex-end;'+(isMe?'flex-direction:row-reverse':'');
+    var av=el('div');
+    av.style.cssText='width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0';
+    av.textContent=m.av||'👤';
+    var bubble=el('div');
+    bubble.style.cssText='background:'+(isMe?'var(--gd)':'var(--s2)')+';border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.6;max-width:100%';
+    if(!isMe){
+      var nameEl=el('div');nameEl.style.cssText='font-size:10px;font-weight:700;color:var(--g2);margin-bottom:3px';
+      nameEl.textContent=m.u;bubble.appendChild(nameEl);
+    }
+    var msgText=el('div');msgText.textContent=m.msg;bubble.appendChild(msgText);
+    var timeEl=el('div');timeEl.style.cssText='font-size:10px;color:var(--mu);margin-top:3px;'+(isMe?'text-align:right':'');
+    timeEl.textContent=m.t;bubble.appendChild(timeEl);
+    bubbleRow.appendChild(av);bubbleRow.appendChild(bubble);
+    row.appendChild(bubbleRow);
+
+    // Reactions display
+    var reactKeys=Object.keys(m.reactions||{});
+    if(reactKeys.length>0){
+      var reactRow=el('div');
+      reactRow.style.cssText='display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;'+(isMe?'justify-content:flex-end':'');
+      reactKeys.forEach(function(emoji){
+        var count=m.reactions[emoji];
+        if(count>0){
+          var rb=el('button');
+          rb.style.cssText='padding:2px 7px;background:var(--s3);border:1px solid var(--br);border-radius:10px;font-size:12px;cursor:pointer';
+          rb.textContent=emoji+' '+count;
+          (function(e,i){rb.onclick=function(){toggleReaction(roomId,i,e);};})(emoji,mi);
+          reactRow.appendChild(rb);
+        }
+      });
+      row.appendChild(reactRow);
+    }
+
+    // Action row (reply + react) — Pro only
+    if(isPro){
+      var actions=el('div');
+      actions.style.cssText='display:flex;gap:6px;margin-top:4px;'+(isMe?'justify-content:flex-end':'');
+      var replyBtn=el('button');
+      replyBtn.style.cssText='font-size:11px;color:var(--mu);background:transparent;border:none;cursor:pointer;padding:2px 6px;border-radius:8px';
+      replyBtn.textContent='↩ Reply';
+      (function(msgObj){replyBtn.onclick=function(){
+        replyingTo=msgObj;
+        var inp=$('rinp');
+        if(inp){inp.placeholder='Replying to '+msgObj.u+'...';inp.focus();}
+        var rb=$('reply-bar');
+        if(rb){rb.style.display='flex';rb.querySelector('.reply-preview').textContent=msgObj.u+': '+msgObj.msg.slice(0,50)+(msgObj.msg.length>50?'...':'');}
+      };})(m);
+
+      var reactBtn=el('button');
+      reactBtn.style.cssText='font-size:11px;color:var(--mu);background:transparent;border:none;cursor:pointer;padding:2px 6px;border-radius:8px';
+      reactBtn.textContent='😊 React';
+      (function(idx2){reactBtn.onclick=function(){showReactPicker(roomId,idx2);};})(mi);
+
+      actions.appendChild(replyBtn);actions.appendChild(reactBtn);
+      row.appendChild(actions);
+    }
+
+    msgBox.appendChild(row);
+  });
+
+  d.appendChild(msgBox);
+
+  // Reply bar (shows when replying to a message)
+  var replyBar=el('div');replyBar.id='reply-bar';
+  replyBar.style.cssText='display:none;align-items:center;gap:8px;padding:6px 10px;background:var(--s3);border-radius:var(--r2);margin-bottom:6px;flex-shrink:0';
+  replyBar.innerHTML='<div style="font-size:11px;color:var(--g2);flex:1">↩ Replying to: <span class="reply-preview" style="color:var(--w3)"></span></div>';
+  var cancelReply=el('button');cancelReply.textContent='✕';
+  cancelReply.style.cssText='background:transparent;border:none;color:var(--mu);cursor:pointer;font-size:14px';
+  cancelReply.onclick=function(){replyingTo=null;replyBar.style.display='none';var inp=$('rinp');if(inp)inp.placeholder='Share with '+room.n+'...';};
+  replyBar.appendChild(cancelReply);
+  d.appendChild(replyBar);
+
+  // Input row
+  if(isPro){
+    var inputRow=el('div');
+    inputRow.style.cssText='flex:0 0 auto;display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--br)';
+    var inp=el('input');inp.type='text';inp.id='rinp';
+    inp.placeholder='Share with '+room.n+'... (type @ to mention)';
+    inp.style.cssText='flex:1;padding:10px 12px;border-radius:var(--r2);background:var(--c3);border:1.5px solid var(--br);color:var(--w);font-size:14px';
+    inp.onkeypress=function(e){if(e.key==='Enter')sendRoom(roomId);};
+    inp.oninput=function(){handleMentionInput(this, roomId);};
+    var sendBtn=el('button','btn bg bsm');sendBtn.textContent='Send';
+    sendBtn.onclick=function(){sendRoom(roomId);};
+    inputRow.appendChild(inp);inputRow.appendChild(sendBtn);
+    d.appendChild(inputRow);
+
+    // Mention dropdown
+    var mentionDrop=el('div');mentionDrop.id='mention-drop';
+    mentionDrop.style.cssText='display:none;position:absolute;bottom:80px;left:10px;right:10px;background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);z-index:999;max-height:150px;overflow-y:auto';
+    d.appendChild(mentionDrop);
+  } else {
+    var lockedBar=el('div');
+    lockedBar.style.cssText='flex:0 0 auto;padding:12px;background:var(--s2);border-radius:var(--r2);text-align:center;border:1px solid var(--br)';
+    lockedBar.innerHTML='🔒 <strong>Upgrade to Pro</strong> to post messages, react and reply in community rooms.';
+    var upLink=el('button','btn bg bsm');upLink.style.marginTop='8px';upLink.textContent='Upgrade to Pro';upLink.onclick=function(){go('pricing');};
+    lockedBar.appendChild(upLink);
+    d.appendChild(lockedBar);
+  }
+
+  setTimeout(function(){if(msgBox)msgBox.scrollTop=msgBox.scrollHeight;},50);
+  return d;
+}
+
+function sendRoom(roomId){
+  var inp=$('rinp');if(!inp||!inp.value.trim())return;
+  var msg=inp.value.trim();inp.value='';
+  // Process @mentions
+  var processed=msg.replace(/@(\w+)/g,'<strong style="color:var(--g2)">@$1</strong>');
+  var msgObj={
+    id:Date.now()+'',u:firstName(),av:'👤',
+    msg:msg,t:'just now',isMe:true,
+    reactions:{},
+    replyTo:replyingTo?replyingTo.u+': '+replyingTo.msg.slice(0,40)+(replyingTo.msg.length>40?'...':''):null
+  };
+  if(!roomMsgs[roomId])roomMsgs[roomId]=[];
+  roomMsgs[roomId].push(msgObj);
+  replyingTo=null;
+  go('community');
+}
+
+function toggleReaction(roomId, msgIdx, emoji){
+  if(S.tier==='free'){showToast('Upgrade to Pro to react to messages');return;}
+  if(!roomMsgs[roomId]||!roomMsgs[roomId][msgIdx])return;
+  var m=roomMsgs[roomId][msgIdx];
+  if(!m.reactions)m.reactions={};
+  m.reactions[emoji]=(m.reactions[emoji]||0)+1;
+  if(m.reactions[emoji]>10)m.reactions[emoji]=0;
+  go('community');
+}
+
+function showReactPicker(roomId, msgIdx){
+  var emojis=['👍','❤️','🔥','💡','🎯','💪','🙏','😂'];
+  var existing=$('react-picker');
+  if(existing){existing.remove();return;}
+  var picker=el('div');picker.id='react-picker';
+  picker.style.cssText='position:fixed;bottom:100px;right:16px;background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);padding:10px;display:flex;gap:8px;flex-wrap:wrap;z-index:1000;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+  emojis.forEach(function(e){
+    var btn=el('button');btn.textContent=e;
+    btn.style.cssText='font-size:22px;background:transparent;border:none;cursor:pointer;padding:4px;border-radius:6px';
+    (function(em){btn.onclick=function(){toggleReaction(roomId,msgIdx,em);var p=$('react-picker');if(p)p.remove();};})(e);
+    picker.appendChild(btn);
+  });
+  document.body.appendChild(picker);
+  setTimeout(function(){document.addEventListener('click',function rm(){var p=$('react-picker');if(p)p.remove();document.removeEventListener('click',rm);},{once:true});},100);
+}
+
+function handleMentionInput(inp, roomId){
+  var val=inp.value;
+  var atIdx=val.lastIndexOf('@');
+  var drop=$('mention-drop');if(!drop)return;
+  if(atIdx===-1||val.slice(atIdx+1).includes(' ')){drop.style.display='none';return;}
+  var query=val.slice(atIdx+1).toLowerCase();
+  var room=ROOMS.find(function(r){return r.id===roomId;});
+  var members=room?(ROOM_MSGS[roomId]||[]).map(function(m){return m.u;}).filter(function(v,i,a){return a.indexOf(v)===i;}):[firstName()];
+  var matches=members.filter(function(m){return m.toLowerCase().startsWith(query);});
+  if(matches.length===0){drop.style.display='none';return;}
+  drop.innerHTML='';drop.style.display='block';
+  matches.forEach(function(name){
+    var item=el('div');item.style.cssText='padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--br)';
+    item.textContent='@'+name;
+    item.onclick=function(){
+      inp.value=val.slice(0,atIdx)+'@'+name+' ';
+      drop.style.display='none';inp.focus();
+    };
+    drop.appendChild(item);
+  });
+}
+
+function renderCustomRoom(cr){
+  var d=el('div','au');
+  d.style.cssText='display:flex;flex-direction:column;height:calc(100vh - 120px)';
+  if(!cr.messages)cr.messages=[];
+  var hdr=el('div');hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-shrink:0';
+  var back=el('button','btn bgh bsm');back.textContent='← Back';
+  back.onclick=function(){curRoom=null;go('community');};
+  var info=el('div');
+  info.innerHTML='<div style="font-size:16px;font-weight:700">'+(cr.icon||'💬')+' '+cr.name+'</div>'
+    +'<div style="font-size:11px;color:var(--mu)">Your custom room</div>';
+  hdr.appendChild(back);hdr.appendChild(info);d.appendChild(hdr);
+  var msgBox=el('div');msgBox.id='rmsgs';
+  msgBox.style.cssText='flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:11px;min-height:0';
+  if(!cr.messages.length){
+    var empty=el('div');empty.style.cssText='text-align:center;color:var(--mu);padding:40px 20px;font-size:13px';
+    empty.textContent='Be the first to post!';msgBox.appendChild(empty);
+  } else {
+    cr.messages.forEach(function(m){
+      var row=el('div');row.style.cssText='display:flex;gap:8px;max-width:85%;'+(m.isMe?'align-self:flex-end;flex-direction:row-reverse':'');
+      var av=el('div');av.style.cssText='width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px';
+      av.textContent=m.av||'👤';
+      var bub=el('div');bub.innerHTML='<div style="background:'+(m.isMe?'var(--gd)':'var(--s2)')+';border-radius:12px;padding:9px 12px;font-size:13px;line-height:1.6">'+m.msg+'</div>'
+        +'<div style="font-size:10px;color:var(--mu);margin-top:2px;'+(m.isMe?'text-align:right':'')+'">'+m.t+'</div>';
+      row.appendChild(av);row.appendChild(bub);msgBox.appendChild(row);
+    });
+  }
+  d.appendChild(msgBox);
+  var inputRow=el('div');inputRow.style.cssText='flex:0 0 auto;display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--br)';
+  var inp=el('input');inp.type='text';inp.id='rinp';inp.placeholder='Post in '+cr.name+'...';
+  inp.style.cssText='flex:1;padding:10px 12px;border-radius:var(--r2);background:var(--c3);border:1.5px solid var(--br);color:var(--w);font-size:14px';
+  inp.onkeypress=function(e){if(e.key==='Enter')sendCustomRoom();};
+  var sendBtn=el('button','btn bg bsm');sendBtn.textContent='Send';sendBtn.onclick=sendCustomRoom;
+  inputRow.appendChild(inp);inputRow.appendChild(sendBtn);d.appendChild(inputRow);
+  setTimeout(function(){msgBox.scrollTop=msgBox.scrollHeight;},50);
+  return d;
+}
+
+function sendCustomRoom(){
+  var inp=$('rinp');if(!inp||!inp.value.trim())return;
+  var msg=inp.value.trim();inp.value='';
+  var cr=S.custom_rooms&&S.custom_rooms.find(function(r){return 'cr_'+r.id===curRoom;});
+  if(!cr)return;
+  if(!cr.messages)cr.messages=[];
+  cr.messages.push({u:firstName(),av:'👤',msg:msg,t:'just now',isMe:true});
+  saveS();go('community');
+}
 PAGES['partners'] = function(){
   if(S.tier==='free'){var d=el('div','au');d.innerHTML='<div class="pt" style="margin-bottom:4px">Accountability Partners</div><div class="co cog" style="margin-bottom:14px">🔒 Partners require Pro (₦5,000/month) or above.</div><button class="btn bg bfull" onclick="go(\'pricing\')">Upgrade to Access Partners →</button>';return d;}
   var d=el('div','au');
@@ -2912,6 +3361,102 @@ function downloadVisionBoard(){
 
 // ═══ PODCAST HUB ════════════════════════════════════════
 
+
+function openPodcast(id){
+  var pod=PODS.find(function(p){return p.id===id;});
+  if(!pod)return;
+  if(!pod.free&&S.tier==='free'){
+    showModal('🔒 Pro Required','<p style="color:var(--mu);margin-bottom:13px">Upgrade to Pro to access all podcast discussions.</p><button class="btn bg bfull" onclick="closeModal();go(\'pricing\')">Upgrade to Pro →</button>');
+    return;
+  }
+  showPodcastDetail(pod,'about');
+}
+
+function showPodcastDetail(pod, activeTab){
+  if(!activeTab)activeTab='about';
+  currentPodcast=pod;
+  var isPro=S.tier!=='free';
+  var discussions=(S.hub_discussions||[]).filter(function(d){return d.podId===pod.id;});
+
+  var tabs='<div style="display:flex;gap:6px;margin-bottom:14px">';
+  ['about','discussion'].forEach(function(tab){
+    var active=tab===activeTab;
+    tabs+='<button onclick="showPodcastDetail(currentPodcast,\''+tab+'\')" style="flex:1;padding:8px;border-radius:var(--r2);border:1.5px solid '
+      +(active?'var(--g2)':'var(--br)')+';background:'+(active?'rgba(0,217,139,.1)':'transparent')
+      +';color:'+(active?'var(--g2)':'var(--mu)')+';font-size:13px;font-weight:700;cursor:pointer">'
+      +(tab==='about'?'🎙️ About':'💬 Discussions')+'</button>';
+  });
+  tabs+='</div>';
+
+  var content='';
+  if(activeTab==='about'){
+    content=tabs
+      +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'
+      +'<div style="font-size:40px">'+pod.icon+'</div>'
+      +'<div><div style="font-size:15px;font-weight:700">'+pod.name+'</div>'
+      +'<div style="font-size:12px;color:var(--mu)">'+pod.host+'</div>'
+      +'<div style="font-size:11px;color:var(--g2);margin-top:3px">'+pod.cat+'</div></div></div>'
+      +'<div style="font-size:13px;color:var(--w3);line-height:1.7;margin-bottom:14px">'+pod.desc+'</div>';
+
+    if(pod.episodes&&pod.episodes.length){
+      content+='<div style="font-size:13px;font-weight:700;margin-bottom:10px">Featured Episodes</div>';
+      pod.episodes.forEach(function(ep){
+        content+='<div style="background:var(--s2);border-radius:var(--r2);padding:11px;margin-bottom:8px;border:1px solid var(--br)">'
+          +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">'+ep.title+'</div>'
+          +'<div style="font-size:12px;color:var(--mu);margin-bottom:8px">'+ep.summary+'</div>'
+          +(ep.url?'<a href="'+ep.url+'" target="_blank" class="btn bgh bsm">▶ Listen</a>':'')
+          +'</div>';
+      });
+    }
+
+    content+='<div style="margin-top:12px">'
+      +'<a href="'+pod.url+'" target="_blank" class="btn bg" style="width:100%;display:block;text-align:center">🎙️ Visit '+pod.name+'</a></div>';
+
+  } else {
+    // Discussion tab
+    content=tabs
+      +'<div style="margin-bottom:12px">'
+      +'<div style="font-size:14px;font-weight:700;margin-bottom:4px">Discussions — '+pod.name+'</div>'
+      +'<div style="font-size:12px;color:var(--mu)">Share episodes that moved you, key takeaways, timestamps of important moments.</div></div>';
+
+    if(isPro){
+      content+='<button onclick="showHubPostForm(\'podcast\',\''+pod.id+'\',\''+pod.name+'\')" style="width:100%;padding:10px;background:var(--gd);border:none;border-radius:var(--r2);color:#000;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">+ Share Episode or Insight</button>';
+    } else {
+      content+='<div class="co cog" style="margin-bottom:12px;font-size:12px">🔒 <a onclick="closeModal();go(\'pricing\')" style="color:var(--g2);cursor:pointer">Upgrade to Pro</a> to post. Free users can read all discussions.</div>';
+    }
+
+    if(discussions.length===0){
+      content+='<div style="text-align:center;padding:30px;color:var(--mu);font-size:13px">No discussions yet.<br>Be the first to share an episode that changed your perspective!</div>';
+    } else {
+      discussions.forEach(function(disc){
+        var comments=disc.comments||[];
+        content+='<div style="background:var(--s2);border-radius:var(--r2);padding:13px;margin-bottom:10px;border:1px solid var(--br)">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:12px">'+(disc.av||'👤')+'</div>'
+          +'<div><div style="font-size:13px;font-weight:700">'+disc.author+'</div>'
+          +'<div style="font-size:10px;color:var(--mu)">'+disc.time+'</div></div>'
+          +'<span style="margin-left:auto;font-size:11px;padding:2px 8px;background:rgba(0,217,139,.1);border-radius:10px;color:var(--g2)">'+disc.cat+'</span>'
+          +'</div>'
+          +'<div style="font-size:13px;color:var(--w3);line-height:1.7;margin-bottom:10px">'+disc.body+'</div>'
+          +'<div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--mu);padding-top:8px;border-top:1px solid var(--br)">'
+          +'<span>❤️ '+(disc.likes||0)+'</span>'
+          +'<span>💬 '+comments.length+' replies</span>'
+          +(isPro?'<button onclick="likeHubPost(\''+disc.id+'\')" style="margin-left:auto;background:transparent;border:1px solid var(--br);border-radius:10px;padding:3px 10px;color:var(--mu);cursor:pointer;font-size:11px">❤️ Like</button>':'')
+          +(isPro?'<button onclick="replyHubPost(\''+disc.id+'\')" style="background:transparent;border:1px solid var(--br);border-radius:10px;padding:3px 10px;color:var(--mu);cursor:pointer;font-size:11px">↩ Reply</button>':'')
+          +'</div>'
+          +(comments.length>0?'<div style="margin-top:10px;padding-left:12px;border-left:2px solid var(--br)">'
+            +comments.map(function(cm){return '<div style="margin-bottom:8px"><span style="font-size:12px;font-weight:700;color:var(--g2)">'+cm.u+'</span> <span style="font-size:11px;color:var(--mu)">'+cm.t+'</span><div style="font-size:12.5px;color:var(--w3);margin-top:2px">'+cm.msg+'</div></div>';}).join('')
+            +'</div>':'')
+          +'</div>';
+      });
+    }
+  }
+
+  showModal('🎙️ '+pod.name, content,
+    '<button class="btn bgh bfull" onclick="closeModal()">Close</button>'
+  );
+}
+
 PAGES['podcasts'] = function(){
   var d = document.createElement('div');
   d.className = 'au';
@@ -2973,486 +3518,4 @@ PAGES['podcasts'] = function(){
 
   // Submit CTA
   var cta=document.createElement('div');
-  cta.style.cssText='background:linear-gradient(135deg,rgba(245,200,64,.08),var(--s1));border:1px solid rgba(245,200,64,.2);border-radius:var(--r2);padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px';
-  var ctaText=document.createElement('div');
-  ctaText.innerHTML='<div style="font-weight:700;font-size:13px;color:var(--em)">🎙️ Podcast Creator?</div><div style="font-size:12px;color:var(--mu);margin-top:2px">Submit your podcast to be featured here</div>';
-  var subBtn=document.createElement('button'); subBtn.className='btn bg bsm'; subBtn.textContent='Submit →'; subBtn.style.whiteSpace='nowrap'; subBtn.onclick=submitPodcast;
-  cta.appendChild(ctaText); cta.appendChild(subBtn); d.appendChild(cta);
-
-  // Category filter
-  var catRow=document.createElement('div'); catRow.style.cssText='display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px';
-  CATS.forEach(function(cat){
-    var cb=document.createElement('button');
-    var active=cat===selCat;
-    cb.style.cssText='padding:6px 12px;background:'+(active?'var(--gd)':'var(--c2)')+';border:1px solid '+(active?'transparent':'var(--br)')+';border-radius:20px;font-size:12px;font-weight:'+(active?'700':'400')+';color:'+(active?'#000':'var(--w)')+';cursor:pointer';
-    cb.textContent=cat;
-    cb.onclick=(function(c){return function(){S.pod_cat=c;saveS();go('podcasts');};})(cat);
-    catRow.appendChild(cb);
-  });
-  d.appendChild(catRow);
-
-  // Podcast list
-  var filtered=selCat==='All'?PODS:PODS.filter(function(p){return p.cat===selCat;});
-  var saved=S.saved_pods||[];
-
-  filtered.forEach(function(pod){
-    var locked=!pod.free&&!isPro;
-    var card=document.createElement('div'); card.className='card'; card.style.marginBottom='12px';
-    var row=document.createElement('div'); row.style.cssText='display:flex;align-items:flex-start;gap:13px';
-
-    var iconBox=document.createElement('div');
-    iconBox.style.cssText='width:52px;height:52px;background:var(--c3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0';
-    iconBox.textContent=pod.icon;
-
-    var info=document.createElement('div'); info.style.cssText='flex:1;min-width:0';
-
-    var nameRow=document.createElement('div'); nameRow.style.cssText='display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px';
-    var nameEl=document.createElement('div'); nameEl.style.cssText='font-weight:700;font-size:15px;color:var(--w)'; nameEl.textContent=pod.name;
-    nameRow.appendChild(nameEl);
-    if(locked){var proTag=document.createElement('span');proTag.style.cssText='font-size:10px;background:var(--em);color:#000;padding:2px 6px;border-radius:4px;font-weight:700';proTag.textContent='PRO';nameRow.appendChild(proTag);}
-
-    var hostEl=document.createElement('div'); hostEl.style.cssText='font-size:12px;color:var(--g2);margin-bottom:3px'; hostEl.textContent=pod.host;
-    var catEl=document.createElement('div'); catEl.style.cssText='font-size:11px;color:var(--mu);margin-bottom:5px'; catEl.textContent=pod.cat;
-    var descEl=document.createElement('div'); descEl.style.cssText='font-size:12.5px;color:var(--w3);line-height:1.5;margin-bottom:10px'; descEl.textContent=pod.desc;
-
-    var epsLbl=document.createElement('div'); epsLbl.style.cssText='font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px'; epsLbl.textContent='Popular Episodes';
-    var epsList=document.createElement('div');
-    pod.eps.forEach(function(ep){
-      var epEl=document.createElement('div'); epEl.style.cssText='font-size:12px;color:var(--w3);padding:4px 0;border-bottom:1px solid var(--br)'; epEl.textContent='▶ '+ep; epsList.appendChild(epEl);
-    });
-
-    var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:7px;margin-top:10px';
-    var listenBtn=document.createElement('button');
-    listenBtn.style.cssText='padding:8px 16px;background:'+(locked?'var(--c3)':'var(--gd)')+';border:'+(locked?'1px solid var(--br)':'none')+';border-radius:8px;font-size:12px;font-weight:700;color:'+(locked?'var(--mu)':'#000')+';cursor:pointer';
-    listenBtn.textContent=locked?'🔒 Upgrade to Listen':'🎧 Listen Now →';
-    listenBtn.onclick=locked?function(){go('pricing');}:(function(url){return function(){window.open(url,'_blank');};})(pod.url);
-
-    var saveBtn=document.createElement('button');
-    var isSaved=saved.indexOf(pod.id)!==-1;
-    saveBtn.style.cssText='padding:8px 12px;background:var(--c3);border:1px solid var(--br);border-radius:8px;font-size:12px;cursor:pointer;color:var(--mu)';
-    saveBtn.textContent=isSaved?'★ Saved':'☆ Save';
-    saveBtn.onclick=(function(pid){return function(){
-      if(!S.saved_pods)S.saved_pods=[];
-      var i=S.saved_pods.indexOf(pid);
-      if(i===-1){S.saved_pods.push(pid);showToast('Podcast saved');}
-      else{S.saved_pods.splice(i,1);showToast('Removed');}
-      saveS(); go('podcasts');
-    };})(pod.id);
-
-    btns.appendChild(listenBtn); btns.appendChild(saveBtn);
-    info.appendChild(nameRow); info.appendChild(hostEl); info.appendChild(catEl); info.appendChild(descEl);
-    info.appendChild(epsLbl); info.appendChild(epsList); info.appendChild(btns);
-    row.appendChild(iconBox); row.appendChild(info); card.appendChild(row);
-    d.appendChild(card);
-  });
-  return d;
-};
-
-PAGES['feedback'] = function(){
-  var d = document.createElement('div');
-  d.className = 'au';
-
-  // Header
-  var title = document.createElement('div');
-  title.className = 'pt';
-  title.textContent = 'Feedback & Support';
-  d.appendChild(title);
-
-  var sub = document.createElement('div');
-  sub.style.cssText = 'font-size:13px;color:var(--mu);margin-bottom:20px;line-height:1.6';
-  sub.textContent = 'Your feedback shapes Y3S. Every report, idea, and message goes directly to the founder. We read everything.';
-  d.appendChild(sub);
-
-  // WhatsApp CTA — most prominent
-  var waCard = document.createElement('div');
-  waCard.style.cssText = 'background:linear-gradient(135deg,rgba(37,211,102,.1),rgba(10,22,40,.8));border:1.5px solid rgba(37,211,102,.35);border-radius:var(--r2);padding:18px;margin-bottom:14px;cursor:pointer;display:flex;align-items:center;gap:14px';
-  waCard.onclick = function(){ window.open('https://wa.me/2347048248864?text=Hi%20Y3S%20Team!%20I%20am%20reaching%20out%20about%20the%20app.','_blank'); };
-  var waIcon = document.createElement('div');
-  waIcon.style.cssText = 'font-size:36px;flex-shrink:0';
-  waIcon.textContent = '📲';
-  var waText = document.createElement('div');
-  waText.innerHTML = '<div style="font-weight:700;font-size:15px;color:#25D366;margin-bottom:3px">Chat With Us on WhatsApp</div>'
-    + '<div style="font-size:12px;color:var(--mu)">Fastest response. Message the Y3S team directly — questions, issues, feedback, anything.</div>'
-    + '<div style="font-size:11px;color:rgba(37,211,102,.7);margin-top:5px;font-weight:600">Tap to open WhatsApp →</div>';
-  waCard.appendChild(waIcon);
-  waCard.appendChild(waText);
-  d.appendChild(waCard);
-
-  // Quick action buttons row
-  var quickRow = document.createElement('div');
-  quickRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px';
-
-  var quickBtns = [
-    {icon:'🐛', label:'Report a Bug', msg:'Hi Y3S Team! I found a bug in the app I want to report.'},
-    {icon:'💡', label:'Suggest a Feature', msg:'Hi Y3S Team! I have a feature idea for Y3S.'},
-    {icon:'🙋', label:'Get Help', msg:'Hi Y3S Team! I need help using the app.'},
-    {icon:'⭐', label:'Share a Win', msg:'Hi Y3S Team! I want to share a financial win I had using Y3S!'},
-  ];
-
-  quickBtns.forEach(function(btn){
-    var b = document.createElement('button');
-    b.style.cssText = 'padding:12px 10px;background:var(--c2);border:1px solid var(--br);border-radius:var(--r2);cursor:pointer;text-align:center';
-    b.innerHTML = '<div style="font-size:22px;margin-bottom:5px">' + btn.icon + '</div>'
-      + '<div style="font-size:12px;font-weight:600;color:var(--w)">' + btn.label + '</div>';
-    b.onclick = (function(msg){ return function(){
-      window.open('https://wa.me/2347048248864?text=' + encodeURIComponent(msg), '_blank');
-    };})(btn.msg);
-    quickRow.appendChild(b);
-  });
-  d.appendChild(quickRow);
-
-  // Feedback form
-  var formCard = document.createElement('div');
-  formCard.className = 'card';
-  formCard.style.marginBottom = '14px';
-
-  var formTitle = document.createElement('div');
-  formTitle.className = 'sl';
-  formTitle.style.marginBottom = '14px';
-  formTitle.textContent = '📝 Send Us a Message';
-  formCard.appendChild(formTitle);
-
-  // Category select
-  var catLbl = document.createElement('label');
-  catLbl.style.cssText = 'font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px';
-  catLbl.textContent = 'What is this about?';
-  var catSel = document.createElement('select');
-  catSel.id = 'fb-cat';
-  catSel.style.cssText = 'width:100%;padding:11px 12px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;margin-bottom:12px;box-sizing:border-box';
-  [['general','General Feedback'],['bug','Bug Report'],['feature','Feature Request'],['content','Content Error'],['payment','Payment Issue'],['praise','Something I Love About Y3S'],['idea','Partnership / Business Idea']].forEach(function(opt){
-    var o = document.createElement('option');
-    o.value = opt[0]; o.textContent = opt[1];
-    catSel.appendChild(o);
-  });
-
-  // Name
-  var nameLbl = document.createElement('label');
-  nameLbl.style.cssText = 'font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px';
-  nameLbl.textContent = 'Your Name';
-  var nameInp = document.createElement('input');
-  nameInp.type = 'text'; nameInp.id = 'fb-name';
-  nameInp.placeholder = S.profile && S.profile.name ? S.profile.name : 'e.g. Adegboyega';
-  nameInp.value = S.profile && S.profile.name ? S.profile.name : '';
-  nameInp.style.cssText = 'width:100%;padding:11px 12px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;margin-bottom:12px;box-sizing:border-box';
-
-  // Email
-  var emailLbl = document.createElement('label');
-  emailLbl.style.cssText = 'font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px';
-  emailLbl.textContent = 'Email (for us to reply)';
-  var emailInp = document.createElement('input');
-  emailInp.type = 'email'; emailInp.id = 'fb-email';
-  emailInp.placeholder = S.profile && S.profile.email ? S.profile.email : 'your@email.com';
-  emailInp.value = S.profile && S.profile.email ? S.profile.email : '';
-  emailInp.style.cssText = 'width:100%;padding:11px 12px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;margin-bottom:12px;box-sizing:border-box';
-
-  // Rating
-  var ratingLbl = document.createElement('label');
-  ratingLbl.style.cssText = 'font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:8px';
-  ratingLbl.textContent = 'How would you rate Y3S so far?';
-  var ratingRow = document.createElement('div');
-  ratingRow.id = 'fb-rating-row';
-  ratingRow.style.cssText = 'display:flex;gap:8px;margin-bottom:12px';
-  [1,2,3,4,5].forEach(function(n){
-    var star = document.createElement('button');
-    star.type = 'button';
-    star.dataset.val = n;
-    star.style.cssText = 'flex:1;padding:10px 0;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);font-size:20px;cursor:pointer;transition:all .15s';
-    star.textContent = '★';
-    star.onclick = function(){
-      document.querySelectorAll('#fb-rating-row button').forEach(function(s,i){
-        s.style.background = i < Number(this.dataset.val) ? 'rgba(245,200,64,.2)' : 'var(--c3)';
-        s.style.borderColor = i < Number(this.dataset.val) ? 'var(--em)' : 'var(--br)';
-        s.style.color = i < Number(this.dataset.val) ? 'var(--em)' : 'var(--mu)';
-      }.bind(this));
-      document.getElementById('fb-rating-val').value = this.dataset.val;
-    };
-    ratingRow.appendChild(star);
-  });
-  var ratingHidden = document.createElement('input');
-  ratingHidden.type = 'hidden'; ratingHidden.id = 'fb-rating-val'; ratingHidden.value = '0';
-
-  // Message
-  var msgLbl = document.createElement('label');
-  msgLbl.style.cssText = 'font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px';
-  msgLbl.textContent = 'Your Message';
-  var msgArea = document.createElement('textarea');
-  msgArea.id = 'fb-msg'; msgArea.rows = 5;
-  msgArea.placeholder = 'Tell us anything — what you love, what broke, what you wish existed, or a win you want to share. We read every single message.';
-  msgArea.style.cssText = 'width:100%;padding:11px 12px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;resize:none;margin-bottom:12px;box-sizing:border-box;line-height:1.5';
-
-  // Submit button
-  var submitBtn = document.createElement('button');
-  submitBtn.className = 'btn bg bfull';
-  submitBtn.style.cssText = 'margin-bottom:8px';
-  submitBtn.textContent = 'Send Feedback →';
-  submitBtn.onclick = submitFeedback;
-
-  var waAlt = document.createElement('button');
-  waAlt.className = 'btn bgh bfull';
-  waAlt.textContent = '📲 Or Send via WhatsApp Instead';
-  waAlt.onclick = function(){ sendFeedbackWhatsApp(); };
-
-  [catLbl, catSel, nameLbl, nameInp, emailLbl, emailInp,
-   ratingLbl, ratingRow, ratingHidden, msgLbl, msgArea,
-   submitBtn, waAlt].forEach(function(el){ formCard.appendChild(el); });
-  d.appendChild(formCard);
-
-  // Past submissions (stored locally)
-  var past = S.feedback_sent || [];
-  if(past.length > 0){
-    var pastCard = document.createElement('div');
-    pastCard.className = 'card';
-    var pastTitle = document.createElement('div');
-    pastTitle.className = 'sl'; pastTitle.style.marginBottom = '10px';
-    pastTitle.textContent = 'Your Previous Messages (' + past.length + ')';
-    pastCard.appendChild(pastTitle);
-    past.slice().reverse().slice(0,5).forEach(function(fb){
-      var row = document.createElement('div');
-      row.style.cssText = 'padding:9px 0;border-bottom:1px solid var(--br)';
-      row.innerHTML = '<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
-        + '<span style="font-size:12px;font-weight:600;color:var(--g2)">' + (fb.cat||'General') + '</span>'
-        + '<span style="font-size:10px;color:var(--mu)">' + (fb.date||'') + '</span></div>'
-        + '<div style="font-size:12px;color:var(--w3)">' + (fb.msg||'').slice(0,80) + (fb.msg&&fb.msg.length>80?'…':'') + '</div>'
-        + (fb.rating>0?'<div style="font-size:11px;color:var(--em);margin-top:3px">' + '★'.repeat(fb.rating) + '</div>':'');
-      pastCard.appendChild(row);
-    });
-    d.appendChild(pastCard);
-  }
-
-  // Contact info card
-  var contactCard = document.createElement('div');
-  contactCard.className = 'card';
-  contactCard.innerHTML = '<div class="sl" style="margin-bottom:10px">📬 Other Ways to Reach Us</div>'
-    + '<div style="font-size:13px;color:var(--w3);line-height:2">'
-    + '📧 <a href="mailto:hello@y3sapp.com" style="color:var(--g2)">hello@y3sapp.com</a><br>'
-    + '📲 WhatsApp: <a href="https://wa.me/2347048248864" target="_blank" style="color:var(--g2)">+234 704 824 8864</a><br>'
-    + '📸 Instagram: <a href="https://instagram.com/y3sappofficial" target="_blank" style="color:var(--g2)">@y3sappofficial</a><br>'
-    + '🐦 Twitter/X: <a href="https://x.com/y3sappofficial" target="_blank" style="color:var(--g2)">@y3sappofficial</a><br>'
-    + '🌐 Website: <a href="https://y3sapp.com" target="_blank" style="color:var(--g2)">y3sapp.com</a><br>'
-    + '📍 15 Wole Olateju Street, Lekki Phase 1, Lagos, Nigeria'
-    + '</div>';
-  d.appendChild(contactCard);
-
-  return d;
-};
-
-function submitFeedback(){
-  var cat=($('fb-cat')||{}).value||'general';
-  var name=($('fb-name')||{}).value.trim()||(S.profile&&S.profile.name)||'Anonymous';
-  var email=($('fb-email')||{}).value.trim()||'';
-  var rating=Number(($('fb-rating-val')||{}).value)||0;
-  var msg=($('fb-msg')||{}).value.trim();
-  if(!msg){showToast('Please write your message first');return;}
-  if(!S.feedback_sent)S.feedback_sent=[];
-  S.feedback_sent.push({cat:cat,name:name,email:email,rating:rating,msg:msg,date:new Date().toLocaleDateString()});
-  if(S.feedback_sent.length>20)S.feedback_sent=S.feedback_sent.slice(-20);
-  saveS();
-  var waMsg='[Y3S Feedback] Category: '+cat+' | Name: '+name+(email?' | Email: '+email:'')+(rating>0?' | Rating: '+rating+'/5':'')+' | Message: '+msg;
-  window.open('https://wa.me/2347048248864?text='+encodeURIComponent(waMsg),'_blank');
-  showToast('Thank you! Opening WhatsApp to send your feedback');
-  setTimeout(function(){go('feedback');},800);
-}
-function sendFeedbackWhatsApp(){
-  var cat=($('fb-cat')||{}).value||'general';
-  var msg=($('fb-msg')||{}).value.trim()||'';
-  var name=($('fb-name')||{}).value.trim()||(S.profile&&S.profile.name)||'';
-  var text='Hi Y3S Team! ['+cat+']'+(name?' — '+name:'')+(msg?' | '+msg:'');
-  window.open('https://wa.me/2347048248864?text='+encodeURIComponent(text),'_blank');
-}
-
-
-PAGES['settings'] = function(){
-  var d = document.createElement('div');
-  d.className = 'au';
-
-  var title = document.createElement('div'); title.className='pt'; title.textContent='Settings'; d.appendChild(title);
-
-  // Notifications
-  var notifCard = document.createElement('div'); notifCard.className='card'; notifCard.style.marginBottom='14px';
-  var notifTitle = document.createElement('div'); notifTitle.className='sl'; notifTitle.style.marginBottom='10px'; notifTitle.textContent='🔔 Daily Reminders';
-  var notifPerm = typeof Notification !== 'undefined' ? Notification.permission : 'not-supported';
-  var notifStatus = document.createElement('div');
-  notifStatus.style.cssText='font-size:13px;color:var(--w3);margin-bottom:12px;line-height:1.6';
-  notifStatus.innerHTML = notifPerm==='granted'
-    ? '✅ <strong style="color:var(--g2)">Active</strong> — You will receive daily reminders at 7AM (motivation) and 8PM (check-in reminder) if you have not completed your daily habit.'
-    : notifPerm==='denied'
-    ? '❌ <strong style="color:var(--red)">Blocked</strong> — Enable notifications in your browser settings to receive daily reminders.'
-    : '⭕ <strong style="color:var(--em)">Not enabled</strong> — Enable to get daily check-in reminders and morning motivation.';
-  var notifBtn = document.createElement('button');
-  notifBtn.className = 'btn ' + (notifPerm==='granted'?'bgh':'bg') + ' bsm';
-  notifBtn.textContent = notifPerm==='granted' ? '✓ Reminders Active' : '🔔 Enable Daily Reminders';
-  notifBtn.onclick = requestStreakNotifications;
-  notifCard.appendChild(notifTitle); notifCard.appendChild(notifStatus); notifCard.appendChild(notifBtn);
-  d.appendChild(notifCard);
-
-  // Account
-  var accCard = document.createElement('div'); accCard.className='card'; accCard.style.marginBottom='14px';
-  var accTitle = document.createElement('div'); accTitle.className='sl'; accTitle.style.marginBottom='10px'; accTitle.textContent='👤 Your Account';
-  var accInfo = document.createElement('div');
-  accInfo.style.cssText='font-size:13px;color:var(--w3);margin-bottom:12px;line-height:1.8';
-  accInfo.innerHTML='Name: <strong style="color:var(--w)">'+(S.profile&&S.profile.name||'—')+'</strong><br>'
-    +'Email: <strong style="color:var(--w)">'+(S.profile&&S.profile.email||'—')+'</strong><br>'
-    +'Plan: <strong style="color:var(--g2)">'+(S.tier||'free').toUpperCase()+'</strong><br>'
-    +'XP: <strong style="color:var(--em)">'+(S.xp||0).toLocaleString()+'</strong>';
-  var logoutBtn = document.createElement('button');
-  logoutBtn.className = 'btn bgh bsm'; logoutBtn.textContent = 'Sign Out';
-  logoutBtn.onclick = function(){if(confirm('Sign out of Y3S?')){doSignOut();}};
-  accCard.appendChild(accTitle); accCard.appendChild(accInfo); accCard.appendChild(logoutBtn);
-  d.appendChild(accCard);
-
-  // Contact & Business Info
-  var conCard = document.createElement('div'); conCard.className='card'; conCard.style.marginBottom='14px';
-  conCard.innerHTML='<div class="sl" style="margin-bottom:10px">📬 Contact & Support</div>'
-    +'<div style="font-size:13px;color:var(--w3);line-height:2">'
-    +'📍 <strong style="color:var(--w)">15 Wole Olateju Street, Lekki Phase 1, Lagos, Nigeria</strong><br>'
-    +'📧 <a href="mailto:hello@y3sapp.com" style="color:var(--g2)">hello@y3sapp.com</a><br>'
-    +'📲 <a href="https://wa.me/2347048248864" style="color:var(--g2)">WhatsApp: +234 704 824 8864</a><br>'
-    +'📸 <a href="https://instagram.com/y3sappofficial" target="_blank" style="color:var(--g2)">@y3sappofficial</a><br>'
-    +'🌐 <a href="https://y3sapp.com" target="_blank" style="color:var(--g2)">y3sapp.com</a>'
-    +'</div>'
-    +'<div style="margin-top:12px;display:flex;gap:8px">'
-    +'<button class="btn bgh bsm" onclick="goFeedback()">💬 Send Feedback</button>'
-    +'<button class="btn bgh bsm" onclick="openWhatsApp()">📲 WhatsApp Us</button>'
-    +'</div>';
-  d.appendChild(conCard);
-
-  // App info
-  var infoCard = document.createElement('div'); infoCard.className='card';
-  infoCard.innerHTML='<div class="sl" style="margin-bottom:8px">ℹ️ About Y3S</div>'
-    +'<div style="font-size:12px;color:var(--mu);line-height:1.8">'
-    +'Version: 1.0.0 — April 2026<br>'
-    +'AI Coach: Claude Haiku by Anthropic<br>'
-    +'Payments: Paystack<br>'
-    +'Hosting: Netlify + Railway<br>'
-    +'<br>Y3S is Africa&#39;s first AI-powered financial freedom coaching app.<br>'
-    +'Built with love in Lagos, Nigeria.'
-    +'</div>';
-  d.appendChild(infoCard);
-
-  return d;
-};
-
-function submitPodcast(){
-  showModal('Submit Your Podcast',
-    '<p style="color:var(--mu);font-size:13px;margin-bottom:14px;line-height:1.6">Run a financial, business, or self-development podcast for African audiences? We would love to feature you.</p>'
-    +'<div style="margin-bottom:10px"><label style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px">Podcast Name</label>'
-    +'<input type="text" id="pod-name" placeholder="e.g. The Naija Wealth Podcast" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;box-sizing:border-box"/></div>'
-    +'<div style="margin-bottom:10px"><label style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px">Host Name</label>'
-    +'<input type="text" id="pod-host" placeholder="e.g. Adegboyega Adetunji" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;box-sizing:border-box"/></div>'
-    +'<div style="margin-bottom:10px"><label style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px">Podcast Link</label>'
-    +'<input type="url" id="pod-url" placeholder="https://" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:14px;box-sizing:border-box"/></div>'
-    +'<div><label style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:5px">Short Description</label>'
-    +'<textarea id="pod-desc" rows="2" placeholder="What is your podcast about and who is it for?" style="width:100%;padding:10px;background:var(--c3);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:13px;resize:none;box-sizing:border-box"></textarea></div>',
-    '<div style="display:flex;gap:8px"><button class="btn bg bfull" onclick="doSubmitPodcast()">Submit for Review</button><button class="btn bgh" onclick="closeModal()">Cancel</button></div>'
-  );
-}
-function doSubmitPodcast(){
-  var name=(($('pod-name')||{}).value||'').trim();
-  var host=(($('pod-host')||{}).value||'').trim();
-  var url=(($('pod-url')||{}).value||'').trim();
-  if(!name||!host||!url){showToast('Please fill in all fields');return;}
-  closeModal();
-  showToast('Thank you! Podcast submitted for review.');
-}
-
-
-// ──────────────────────────────────────────────────────
-// FOOTER & INIT
-// ──────────────────────────────────────────────────────
-function buildFooter(){
-  var main=document.querySelector('.main');
-  if(!main||main.querySelector('.footer'))return;
-  var f=document.createElement('div');f.className='footer';
-  f.innerHTML='<div class="fdisc"><strong style="color:var(--red)">Financial Disclaimer:</strong> Y3S is an educational platform — not a financial advisor. All content is for educational purposes only. Nothing constitutes financial advice, investment advice, or regulated professional advice. Always seek advice from a qualified registered financial professional before making investment decisions. Y3S is not liable for any financial decisions made based on content on this platform.</div>'
-  +'<div class="fgrid">'
-  +'<div><div style="font-family:var(--ffh);font-size:22px;font-weight:900;margin-bottom:4px"><span style="color:var(--g2)">Y</span><span style="color:var(--em)">3</span><span style="color:var(--w)">S</span></div><div style="font-size:11px;color:var(--mu);font-style:italic;margin-bottom:4px">Say <span style="color:#F5C840;font-weight:900">Y</span><span style="color:#00D98B;font-weight:900">3</span><span style="color:#FFFFFF;font-weight:900">S</span> to Financial Freedom</div><div style="font-size:12px;color:var(--mu);line-height:1.6">Africa\'s financial freedom coaching app. Start at 15. Be free at 28.</div></div>'
-  +'<div><div class="fct">Company</div><div class="flnk" onclick="showModal(\'About Y3S\',\'<p style=\\\"color:var(--mu);line-height:1.75\\\">Y3S was built to democratise financial freedom — to take what was the exclusive reserve of the wealthy and make it available to any young African willing to invest in themselves.</p>\')">About Y3S</div><div class="flnk" onclick="showModal(\'Mission\',\'<p style=\\\"color:var(--mu);line-height:1.75\\\">Equip every young African — starting at age 15 — with the knowledge, tools, habits, and accountability to achieve financial independence within 10 years.</p>\')">Our Mission</div><div class="flnk">Blog & Articles</div></div>'
-  +'<div><div class="fct">Support</div><div class="flnk" onclick="showFAQ()">FAQ</div><div class="flnk" onclick="showModal(\'Contact\',\'<p style=\\\"color:var(--mu)\\\">📧 hello@y3sapp.com<br>🐦 Twitter: @y3sappofficial<br>📸 Instagram: @y3sappofficial</p>\')">Contact Us</div><div class="flnk">Report a Bug</div></div>'
-  +'<div><div class="fct">Legal</div><div class="flnk" onclick="showDisclaimer()">Financial Disclaimer</div><div class="flnk" onclick="showModal(\'Privacy Policy\',\'<p style=\\\"color:var(--mu);line-height:1.75\\\">Y3S collects only minimum necessary data. Your financial data is encrypted and never sold. We comply with the Nigeria Data Protection Act (NDPA) 2023.</p>\')">Privacy Policy</div><div class="flnk" onclick="showModal(\'Terms of Service\',\'<p style=\\\"color:var(--mu);line-height:1.75\\\">By using Y3S you agree: (1) This is an educational tool, not financial advice. (2) You are responsible for your own financial decisions. (3) Y3S is not liable for financial outcomes.</p>\')">Terms of Service</div></div>'
-  +'<div><div class="fct">Install App</div><div class="flnk" onclick="doInstall()">📱 Android — Install App</div><div class="flnk" onclick="doInstall()">🍎 iPhone — Add to Home Screen</div><div class="flnk" onclick="showModal(\'Offline Mode\',\'<p style=\\\"color:var(--mu);line-height:1.75\\\">Y3S works fully offline once installed. Academy, books, FIRE calculator, daily quotes, 90×90 tasks, net worth tracker, and goals all work without internet. Only the AI Coach requires internet.</p>\')">Offline Mode Info</div></div>'
-  +'<div><div class="fct">Social</div><div class="flnk">📸 Instagram @y3sappofficial</div><div class="flnk">🐦 Twitter/X @y3sappofficial</div><div class="flnk">▶️ YouTube — Y3S</div><div class="flnk">💼 LinkedIn — Y3S</div></div>'
-  +'</div>'
-  +'<div class="fbot"><span>© '+new Date().getFullYear()+' Y3S · Say <span style="color:#F5C840;font-weight:900">Y</span><span style="color:#00D98B;font-weight:900">3</span><span style="color:#FFFFFF;font-weight:900">S</span> to Financial Freedom</span><span style="color:var(--g2);font-style:italic">"Wealth is built over time through consistent action."</span><span>Free · Pro ₦5K · MC ₦25K · Personal ₦50K</span></div>';
-  main.appendChild(f);
-}
-function showDisclaimer(){showModal('⚠️ Financial Disclaimer','<div style="font-size:13px;color:var(--mu);line-height:1.75"><p style="font-weight:700;color:var(--w);margin-bottom:10px">Y3S is an educational platform — not a financial advisor.</p><p style="margin-bottom:9px">All content, tools, calculations, projections, and AI coach responses are for <strong>educational purposes only</strong>. Nothing constitutes financial advice or regulated professional advice.</p><p>Always seek advice from a <strong>qualified registered financial professional</strong> before making investment decisions. Y3S is not liable for any financial decisions made based on content encountered here.</p></div>');}
-function goJ(){go('journey');}
-function showWeeklyDigest(){
-  var name=firstName(),streak=calcStreak(),xpW=S.xp||0;
-  var mods=Object.values(S.lessons_done||{}).filter(Boolean).length;
-  var goals_done=(S.goals||[]).filter(function(g){return g.status==='completed';}).length;
-  var inc=S.profile.income||0,exp=S.profile.expenses||0,sav=Math.max(0,inc-exp)*0.8;
-  var fire=(exp||120000)*12*25,nw=((S.networth||[]).slice(-1)[0]||{}).netWorth||0;
-  var pct=fire>0?Math.min(100,(nw/fire)*100):0;
-  var weekNum=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/604800000);
-  var quotes=['The secret to wealth is making money while you sleep. — Warren Buffett','Small daily improvements are the key to staggering long-term results. — Robin Sharma','Every naira saved is a seed planted for your future freedom. — Y3S','Compound interest is the eighth wonder of the world. — Einstein','Financial freedom is about having more choices. — Robert Kiyosaki'];
-  var q=quotes[weekNum%quotes.length];
-  var tips=['Review your budget and cut one unnecessary expense this week.','Increase your monthly investment by just 5% — you will barely notice, but your future self will.','Talk to someone in your network about a potential income opportunity this week.','Read 10 pages of a financial book today — the best investment is in yourself.','Set up an automatic savings increase — even ₦5,000 more per month compounds massively.','Check your investment portfolio performance — stay the course, don&#39;t panic.','Plan your meals for the week — cooking at home saves ₦15K–₦40K monthly.'];
-  var tip=tips[weekNum%tips.length];
-  var wkDone=Object.values(S.week_checks||{}).filter(Boolean).length;
-  var todayDone=(function(){var dk=new Date().toDateString();var ci=S.daily_checkins&&S.daily_checkins[dk];return ci&&Object.values(ci).filter(Boolean).length>0;})();
-
-  showModal('📬 Your Weekly Y3S Digest',
-    '<div style="background:linear-gradient(135deg,rgba(232,160,32,.1),var(--s1));border:1px solid rgba(232,160,32,.2);border-radius:var(--r);padding:14px 17px;margin-bottom:13px">'
-    +'<div style="font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--gold);margin-bottom:5px">Week '+weekNum+' Summary · Good Sunday, '+name+'! 🌟</div>'
-    +'<div style="font-family:var(--ffh);font-size:16px;font-weight:700;color:var(--w)">Your Financial Freedom Report Card</div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px">'
-    +'<div style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);padding:11px;text-align:center"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Streak</div><div style="font-size:22px;font-weight:900;color:'+(streak>=7?'var(--g2)':'var(--em)')+'">'+streak+'🔥</div><div style="font-size:10px;color:var(--mu)">days</div></div>'
-    +'<div style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);padding:11px;text-align:center"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Total XP</div><div style="font-size:22px;font-weight:900;color:var(--blue)">'+xpW.toLocaleString()+'</div><div style="font-size:10px;color:var(--mu)">'+getLvT(xpW)+'</div></div>'
-    +'<div style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);padding:11px;text-align:center"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">Modules Done</div><div style="font-size:22px;font-weight:900;color:var(--pur)">'+mods+'/23</div><div style="font-size:10px;color:var(--mu)">academy</div></div>'
-    +'<div style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r2);padding:11px;text-align:center"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:4px">FIRE Progress</div><div style="font-size:22px;font-weight:900;color:var(--g2)">'+pct.toFixed(0)+'%</div><div style="font-size:10px;color:var(--mu)">of target</div></div>'
-    +'</div>'
-    +'<div style="background:var(--gd);border:1px solid rgba(232,160,32,.2);border-radius:var(--r2);padding:11px;margin-bottom:11px"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:5px">This Week&#39;s Finance Quote</div><div style="font-size:13px;font-style:italic;color:var(--w3)">"'+q+'"</div></div>'
-    +'<div style="background:var(--bd);border:1px solid rgba(77,166,255,.2);border-radius:var(--r2);padding:11px;margin-bottom:11px"><div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--blue);margin-bottom:5px">Next Week&#39;s Focus</div><div style="font-size:13px;color:var(--w3)">'+tip+'</div></div>'
-    +'<div style="font-size:12px;color:var(--mu);text-align:center;padding:8px;border-top:1px solid var(--br)">Weekly tasks completed: '+wkDone+'/6 · Today checked in: '+(todayDone?'✅ Yes':'❌ Not yet')+'</div>',
-    '<div style="display:flex;gap:8px">'
-    +'<button class="btn bg" onclick="closeModal();goJ()">🔥 Check In Now</button>'
-    +'<button class="btn bgh" onclick="closeModal()">Close</button>'
-    +'</div>');
-}
-
-function showNotifSettings(){
-  var perm=('Notification' in window)?Notification.permission:'unsupported';
-  showModal('🔔 Notification Settings',
-    '<div class="co '+(perm==='granted'?'coe':'cor')+'"><strong>Status: '+{granted:'✅ Notifications Active',denied:'❌ Notifications Blocked',default:'⚪ Not yet set up',unsupported:'⚠️ Not supported'}[perm]+'</strong></div>'
-    +'<p style="color:var(--mu);font-size:13px;margin-top:10px;line-height:1.7">Y3S sends a friendly reminder at 8pm if you have not checked in that day — protecting your streak. This only works when the app is open in your browser.</p>'
-    +(perm==='denied'?'<div class="co cor" style="font-size:12.5px;margin-top:9px">Notifications are blocked in your browser. To enable: click the 🔒 or ℹ️ icon in your browser address bar → Notifications → Allow.</div>':'')
-    +(perm!=='granted'&&perm!=='denied'?'<button class="btn bg bfull" style="margin-top:11px" onclick="closeModal();requestStreakNotifications()">Enable Streak Reminders</button>':'')
-    +(perm==='granted'?'<div class="co coe" style="font-size:12.5px;margin-top:9px">✅ You will be reminded at 8pm on days you have not checked in. Your streak is protected.</div>':''),
-    '<button class="btn bgh" onclick="closeModal()">Close</button>');
-}
-
-function showFAQ(){showModal('FAQ',+[['Is Y3S really free?','Yes — permanently free. No credit card required. Core features including FIRE calculator, 5 Academy modules, daily quotes, 90×90 Level 1, and 5 AI messages/month are free forever.'],['What is the 90×90 system?','90 days of focused daily action — minimum 30 minutes, recommended 90 minutes per day. You write a journal entry for each task before marking it done. Four 90-day cycles equals one complete transformation year.'],['Does Y3S give financial advice?','No. Y3S is educational only. Always consult a registered financial professional for specific investment decisions.'],['Does the app work offline?','Yes — once installed. Academy, books, FIRE calculator, daily quotes, 90×90 tasks, goals, and net worth tracker all work offline. Only the AI Coach requires internet.'],['How do I install the app?','Android: tap the Install banner. iPhone: open in Safari → Share button → Add to Home Screen → Add.'],['Can I cancel anytime?','Yes — cancel before your next billing date and you will not be charged again.']].map(function(x){return '<details style="border-bottom:1px solid var(--br);padding:11px 0"><summary style="font-size:13.5px;font-weight:700;cursor:pointer;color:var(--w)">'+x[0]+'</summary><p style="font-size:13px;color:var(--mu);margin-top:8px;line-height:1.7">'+x[1]+'</p></details>';}).join(''));}
-
-new MutationObserver(function(){var a=$('app');if(a&&!a.classList.contains('hide'))setTimeout(buildFooter,600);}).observe(document.getElementById('app'),{attributes:true,attributeFilter:['class']});
-
-// ──────────────────────────────────────────────────────
-// INIT
-// ──────────────────────────────────────────────────────
-function initApp(){
-  loadS();
-  if(!navigator.onLine){var o=$('offline-banner');if(o)o.style.display='block';}
-  // Always show intro philosophy screens on every open.
-  // Returning users (profile.name set) see a Skip to App button.
-  $('app').classList.add('hide');
-  $('onboarding').classList.add('hide');
-  renderIntro();
-  var lr=localStorage.getItem('y3s_wk'),now=new Date(),mon=new Date(now);
-  mon.setDate(now.getDate()-now.getDay()+1);mon.setHours(0,0,0,0);
-  if(!lr||new Date(lr)<mon){S.week_checks={};saveS();localStorage.setItem('y3s_wk',now.toISOString());}
-  setInterval(function(){if(S.profile.name)saveS();},30000);
-  // Weekly digest — show on Sunday once per week
-  setTimeout(function(){
-    if(!S.profile.name)return;
-    var now=new Date();
-    if(now.getDay()!==0)return; // Only on Sunday
-    var wkStr='week-'+now.getFullYear()+'-'+Math.floor((now-new Date(now.getFullYear(),0,0))/604800000);
-    if(localStorage.getItem('y3s_digest')===wkStr)return;
-    localStorage.setItem('y3s_digest',wkStr);
-    setTimeout(showWeeklyDigest,3000); // Show 3 secs after app loads
-  },500);
-}
-document.addEventListener('DOMContentLoaded',initApp);
-</script>
-</body>
-</html>
+  cta.style.cssText='background:line
