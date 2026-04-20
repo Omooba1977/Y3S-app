@@ -1,5 +1,5 @@
 // Y3S Service Worker v4 — forces cache refresh
-const CACHE = 'y3s-v4';
+const CACHE = 'y3s-v5';
 const CORE  = ['/', '/index.html'];
 
 self.addEventListener('install', e => {
