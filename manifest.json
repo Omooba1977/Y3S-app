@@ -1,0 +1,45 @@
+{
+  "name": "Y3S — Say YES to Financial Freedom",
+  "short_name": "Y3S",
+  "description": "Africa's AI-powered financial freedom coaching app. Academy, Budget, Vision Board, FIRE Calculator — works 100% offline.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050911",
+  "theme_color": "#050911",
+  "categories": ["finance", "education", "lifestyle"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%23050911'/%3E%3Ctext y='138' x='96' text-anchor='middle' font-size='128' font-family='Arial Black,sans-serif' font-weight='900'%3E%3Ctspan fill='%23f5c840'%3EY%3C/tspan%3E%3Ctspan fill='%2300d98b'%3E3%3C/tspan%3E%3Ctspan fill='%23ffffff'%3ES%3C/tspan%3E%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23050911'/%3E%3Ctext y='370' x='256' text-anchor='middle' font-size='340' font-family='Arial Black,sans-serif' font-weight='900'%3E%3Ctspan fill='%23f5c840'%3EY%3C/tspan%3E%3Ctspan fill='%2300d98b'%3E3%3C/tspan%3E%3Ctspan fill='%23ffffff'%3ES%3C/tspan%3E%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "FIRE Calculator",
+      "url": "/?page=calculator",
+      "description": "Calculate your path to financial independence"
+    },
+    {
+      "name": "Daily Check-In",
+      "url": "/?page=journey",
+      "description": "Complete your daily 90x90 habit check-in"
+    },
+    {
+      "name": "Academy",
+      "url": "/?page=academy",
+      "description": "Continue your financial education"
+    }
+  ],
+  "prefer_related_applications": false
+}
