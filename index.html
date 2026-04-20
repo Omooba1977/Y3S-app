@@ -837,7 +837,7 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('/sw.js').catch(function(){});
   } else {
     // Running locally or from Claude preview — use inline blob SW
-    var swCode = 'const C="y3s-v4",U=["./"];'
+    var swCode = 'const C="y3s-v5",U=["./"];'
       + 'self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(U)));self.skipWaiting();});'
       + 'self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(n=>n!==C).map(n=>caches.delete(n)))));self.clients.claim();});'
       + 'self.addEventListener("fetch",e=>{if(e.request.url.includes("anthropic.com")||e.request.url.includes("paystack"))return;'
