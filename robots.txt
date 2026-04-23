@@ -1,1 +1,4 @@
+User-agent: *
+Allow: /
 
+Sitemap: https://y3sapp.com/sitemap.xml
