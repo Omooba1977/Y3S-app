@@ -1,1 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Y3S Admin Dashboard</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#050911;--s1:#0c1424;--s2:#111c30;--s3:#172340;
+    --g2:#f5c840;--em:#00d98b;--red:#ff4d6d;--blue:#4da6ff;
+    --w:#f0f4ff;--w2:#c8d4f0;--mu:#7a8ca8;--br:rgba(255,255,255,.08);
+    --r:12px;--r2:8px;
+  }
+  body{background:var(--bg);color:var(--w);font-family:system-ui,-apple-system,sans-serif;min-height:100vh}
 
+  /* LOGIN */
+  #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .login-card{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);padding:40px 32px;width:100%;max-width:420px}
+  .logo{font-family:'Arial Black',sans-serif;font-size:36px;font-weight:900;margin-bottom:4px}
+  .logo span:nth-child(1){color:var(--g2)}
+  .logo span:nth-child(2){color:var(--em)}
+  .logo span:nth-child(3){color:var(--w)}
+  .login-sub{font-size:13px;color:var(--mu);margin-bottom:28px}
+  .notice{background:rgba(0,217,139,.08);border:1px solid rgba(0,217,139,.2);border-radius:var(--r2);padding:12px 14px;font-size:13px;color:var(--em);margin-bottom:20px;line-height:1.6}
+  .fl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);display:block;margin-bottom:6px;font-weight:600}
+  .fi{width:100%;padding:13px 14px;background:var(--s2);border:1.5px solid var(--br);border-radius:var(--r2);color:var(--w);font-size:15px;margin-bottom:14px;outline:none}
+  .fi:focus{border-color:var(--em)}
+  .btn-login{width:100%;padding:14px;background:var(--em);border:none;border-radius:var(--r2);color:#000;font-weight:800;font-size:15px;cursor:pointer;margin-top:4px}
+  .btn-login:hover{opacity:.9}
+  .login-err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+
+  /* DASHBOARD */
+  #dashboard{display:none}
+  .topbar{background:var(--s1);border-bottom:1px solid var(--br);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .tbl{font-family:'Arial Black',sans-serif;font-size:20px;font-weight:900}
+  .tbl span:nth-child(1){color:var(--g2)}
+  .tbl span:nth-child(2){color:var(--em)}
+  .tbl span:nth-child(3){color:var(--w)}
+  .tbr{display:flex;align-items:center;gap:10px}
+  .badge-admin{font-size:11px;padding:3px 10px;background:rgba(0,217,139,.15);border-radius:20px;color:var(--em);font-weight:700}
+  .btn-sm{font-size:12px;padding:6px 14px;border-radius:var(--r2);cursor:pointer;border:1px solid}
+  .btn-refresh{background:rgba(0,217,139,.1);border-color:rgba(0,217,139,.3);color:var(--em)}
+  .btn-logout{background:rgba(255,77,109,.1);border-color:rgba(255,77,109,.3);color:var(--red)}
+
+  .main{padding:24px;max-width:1200px;margin:0 auto}
+  .page-title{font-size:22px;font-weight:800;margin-bottom:4px}
+  .page-sub{font-size:13px;color:var(--mu);margin-bottom:24px}
+
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+  .stat-card{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);padding:18px;text-align:center;cursor:pointer;transition:all .2s}
+  .stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.3)}
+  .stat-card.green{border-color:rgba(0,217,139,.3);background:rgba(0,217,139,.05)}
+  .stat-card.gold{border-color:rgba(245,200,64,.3);background:rgba(245,200,64,.05)}
+  .stat-card.blue{border-color:rgba(77,166,255,.3);background:rgba(77,166,255,.05)}
+  .stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);font-weight:700;margin-bottom:8px}
+  .stat-value{font-size:32px;font-weight:900;line-height:1}
+  .stat-sub{font-size:11px;color:var(--mu);margin-top:4px}
+
+  .section{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);margin-bottom:20px;overflow:hidden}
+  .section-head{padding:16px 20px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between}
+  .section-title{font-size:15px;font-weight:700}
+  .section-sub{font-size:12px;color:var(--mu)}
+
+  .trend-list{padding:16px 20px}
+  .trend-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .trend-date{font-size:11px;color:var(--mu);width:72px;flex-shrink:0}
+  .trend-bar-wrap{flex:1;background:var(--s2);border-radius:4px;height:8px;overflow:hidden}
+  .trend-bar{height:100%;background:var(--em);border-radius:4px;transition:width .4s}
+  .trend-count{font-size:12px;font-weight:700;color:var(--em);width:28px;text-align:right}
+
+  .tier-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px 20px}
+  .tier-item{background:var(--s2);border-radius:var(--r2);padding:14px;text-align:center}
+  .tier-name{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .tier-count{font-size:24px;font-weight:900}
+  .tier-pct{font-size:11px;color:var(--mu);margin-top:2px}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);font-weight:700;padding:10px 20px;text-align:left;border-bottom:1px solid var(--br)}
+  td{padding:11px 20px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .pill{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700}
+  .pill.pro{background:rgba(245,200,64,.15);color:var(--g2)}
+  .pill.free{background:rgba(255,255,255,.06);color:var(--mu)}
+
+  .loading{text-align:center;padding:60px 20px;color:var(--mu);font-size:14px}
+  .spinner{width:32px;height:32px;border:3px solid var(--br);border-top-color:var(--em);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error-box{background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.3);border-radius:var(--r2);padding:14px 18px;color:var(--red);font-size:13px;margin:20px 0;line-height:1.6}
+
+  /* Modal for user detail */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+  .overlay.open{display:flex}
+  .modal-box{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);width:100%;max-width:480px;max-height:80vh;overflow-y:auto;padding:24px}
+  .modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+  .modal-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--br);font-size:13px}
+  .modal-row:last-child{border-bottom:none}
+  .modal-label{color:var(--mu)}
+
+  @media(max-width:600px){
+    .main{padding:14px}
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+    th:nth-child(3),td:nth-child(3){display:none}
+    .topbar{padding:12px 16px}
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo"><span>Y</span><span>3</span><span>S</span></div>
+    <div class="login-sub">Admin Dashboard — Authorised Access Only</div>
+
+    <div class="notice" id="token-notice" style="display:none">
+      ✅ Y3S session detected. Enter your admin password to continue.
+    </div>
+    <div class="notice" id="no-token-notice" style="display:none">
+      ⚠️ No Y3S session found. Please <strong>sign in to y3sapp.com first</strong>, then return here and enter your admin password.
+    </div>
+
+    <label class="fl">Admin Password</label>
+    <input class="fi" type="password" id="admin-pass" placeholder="Enter admin password"
+      onkeypress="if(event.key==='Enter')doAdminLogin()">
+    <button class="btn-login" onclick="doAdminLogin()">Access Dashboard</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="tbl"><span>Y</span><span>3</span><span>S</span> &nbsp;Admin</div>
+    <div class="tbr">
+      <span class="badge-admin">Admin</span>
+      <button class="btn-sm btn-refresh" onclick="loadData()">↻ Refresh</button>
+      <button class="btn-sm btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="page-title">Analytics Dashboard</div>
+    <div class="page-sub" id="last-updated">Loading...</div>
+    <div id="content"><div class="loading"><div class="spinner"></div>Fetching data...</div></div>
+  </div>
+</div>
+
+<!-- User detail modal -->
+<div class="overlay" id="user-modal" onclick="if(event.target===this)closeUserModal()">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title">User Detail</div>
+    <div id="modal-body"></div>
+    <button class="btn-sm btn-refresh" style="margin-top:16px;width:100%;padding:10px" onclick="closeUserModal()">Close</button>
+  </div>
+</div>
+
+<script>
+  var API = 'https://y3s-backend-production.up.railway.app';
+  var ADMIN_PW = 'Y3Sadmin2025!'; // Change this before deploying
+
+  var appToken = localStorage.getItem('y3s_token'); // Same localStorage as main app (same domain)
+  var adminUnlocked = sessionStorage.getItem('y3s_admin_unlocked') === '1';
+
+  // Show appropriate notice
+  if(appToken){
+    document.getElementById('token-notice').style.display = 'block';
+  } else {
+    document.getElementById('no-token-notice').style.display = 'block';
+  }
+
+  // If already unlocked this session, go straight in
+  if(adminUnlocked && appToken){
+    showDashboard();
+  }
+
+  function doAdminLogin(){
+    var pw = document.getElementById('admin-pass').value;
+    var err = document.getElementById('login-err');
+    if(!pw){ err.textContent = 'Please enter the admin password.'; return; }
+    if(pw !== ADMIN_PW){ err.textContent = 'Incorrect password.'; return; }
+    if(!appToken){
+      err.textContent = 'No Y3S session found. Sign in to y3sapp.com first, then return here.';
+      return;
+    }
+    sessionStorage.setItem('y3s_admin_unlocked', '1');
+    showDashboard();
+  }
+
+  function showDashboard(){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadData();
+  }
+
+  function doLogout(){
+    sessionStorage.removeItem('y3s_admin_unlocked');
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('admin-pass').value = '';
+    document.getElementById('login-err').textContent = '';
+  }
+
+  function loadData(){
+    document.getElementById('last-updated').textContent = 'Loading...';
+    document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching live data from backend...</div>';
+
+    fetch(API + '/api/admin/stats', {
+      headers: { 'Authorization': 'Bearer ' + appToken }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(data.error){
+        document.getElementById('content').innerHTML =
+          '<div class="error-box">⚠️ Backend error: <strong>' + esc(data.error) + '</strong><br><br>' +
+          'Make sure your email is in the ADMIN_EMAILS list in routes/admin.js on Railway. ' +
+          'Current token is from the app session — sign out and sign back in to y3sapp.com if needed.</div>';
+        return;
+      }
+      renderDashboard(data);
+    })
+    .catch(function(e){
+      document.getElementById('content').innerHTML =
+        '<div class="error-box">⚠️ Could not connect to Railway backend.<br><small style="opacity:.7">' + esc(e.message) + '</small></div>';
+    });
+  }
+
+  var _allUsers = [];
+
+  function renderDashboard(d){
+    var now = new Date().toLocaleString('en-GB', {dateStyle:'medium', timeStyle:'short'});
+    document.getElementById('last-updated').textContent = 'Last updated: ' + now;
+
+    var total = d.total_users || 0;
+    var pro = d.pro_users || 0;
+    var free = d.free_users || (total - pro);
+    var today = d.new_today || 0;
+    var week = d.new_this_week || 0;
+    var month = d.new_this_month || 0;
+    var trend = d.signup_trend || [];
+    var tiers = d.tier_breakdown || [];
+    _allUsers = d.users || [];
+    var maxT = Math.max.apply(null, trend.map(function(t){ return t.count; })) || 1;
+
+    var html = '';
+
+    // Stat cards
+    html += '<div class="stats-grid">';
+    html += sCard('Total Users', total, '', 'green', 'showUsersTable()');
+    html += sCard('Pro Members', pro, (total > 0 ? Math.round(pro/total*100) : 0) + '% of total', 'gold', 'filterUsers("pro")');
+    html += sCard('Free Users', free, '', '', 'filterUsers("free")');
+    html += sCard('New Today', today, '', today > 0 ? 'green' : '', 'filterUsers("today")');
+    html += sCard('This Week', week, '', 'blue', 'filterUsers("week")');
+    html += sCard('This Month', month, '', 'blue', 'filterUsers("month")');
+    html += '</div>';
+
+    // Two column layout
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">';
+
+    // Trend chart
+    html += '<div class="section"><div class="section-head"><span class="section-title">Signup Trend (14 days)</span></div><div class="trend-list">';
+    if(!trend.length){
+      html += '<div style="color:var(--mu);font-size:13px;padding:10px 0">No trend data yet — signups will appear here.</div>';
+    } else {
+      trend.forEach(function(t){
+        var w = Math.round((t.count / maxT) * 100);
+        html += '<div class="trend-row"><span class="trend-date">' + t.date.slice(5) + '</span>'
+          + '<div class="trend-bar-wrap"><div class="trend-bar" style="width:' + w + '%"></div></div>'
+          + '<span class="trend-count">' + t.count + '</span></div>';
+      });
+    }
+    html += '</div></div>';
+
+    // Tier breakdown
+    html += '<div class="section"><div class="section-head"><span class="section-title">Plan Breakdown</span></div><div class="tier-grid">';
+    if(!tiers.length){
+      html += '<div style="color:var(--mu);font-size:13px;padding:10px;grid-column:1/-1">No tier data yet.</div>';
+    } else {
+      tiers.forEach(function(t){
+        var pct = total > 0 ? Math.round(t.count / total * 100) : 0;
+        html += '<div class="tier-item">'
+          + '<div class="tier-name">' + esc(t.tier || 'unknown').toUpperCase() + '</div>'
+          + '<div class="tier-count" style="color:' + (t.tier === 'pro' ? 'var(--g2)' : 'var(--mu)') + '">' + t.count + '</div>'
+          + '<div class="tier-pct">' + pct + '% of users</div></div>';
+      });
+    }
+    html += '</div></div>';
+    html += '</div>';
+
+    // Users table
+    html += '<div class="section" id="users-section">';
+    html += '<div class="section-head"><div><span class="section-title">Recent Users</span><br><span class="section-sub" id="users-count">Showing last ' + _allUsers.length + ' signups — click any row for details</span></div></div>';
+    html += buildUsersTable(_allUsers);
+    html += '</div>';
+
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function buildUsersTable(users){
+    if(!users.length) return '<div class="loading" style="padding:30px">No users yet</div>';
+    var h = '<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Plan</th><th>Joined</th></tr></thead><tbody>';
+    users.forEach(function(u, i){
+      h += '<tr style="cursor:pointer" onclick="showUser(' + i + ')">'
+        + '<td style="color:var(--mu)">' + (i+1) + '</td>'
+        + '<td style="font-weight:600">' + esc(u.name) + '</td>'
+        + '<td style="color:var(--mu)">' + esc(u.email) + '</td>'
+        + '<td><span class="pill ' + (u.tier||'free') + '">' + (u.tier||'free').toUpperCase() + '</span></td>'
+        + '<td style="color:var(--mu)">' + esc(u.created_at||'—') + '</td>'
+        + '</tr>';
+    });
+    h += '</tbody></table>';
+    return h;
+  }
+
+  function showUsersTable(){
+    var s = document.getElementById('users-section');
+    if(s) s.scrollIntoView({behavior:'smooth'});
+  }
+
+  function filterUsers(filter){
+    var now = new Date();
+    var filtered = _allUsers.filter(function(u){
+      if(filter === 'pro') return u.tier === 'pro';
+      if(filter === 'free') return u.tier !== 'pro';
+      if(filter === 'today'){
+        return u.created_at && u.created_at.slice(0,10) === now.toISOString().slice(0,10);
+      }
+      if(filter === 'week'){
+        var d = new Date(u.created_at);
+        return (now - d) < 7 * 24 * 60 * 60 * 1000;
+      }
+      if(filter === 'month'){
+        var d2 = new Date(u.created_at);
+        return d2.getMonth() === now.getMonth() && d2.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+    var s = document.getElementById('users-section');
+    if(s){
+      s.querySelector('#users-count').textContent = 'Showing ' + filtered.length + ' users (filtered: ' + filter + ')';
+      var tbody = s.querySelector('tbody');
+      if(tbody){
+        var h = '';
+        filtered.forEach(function(u, i){
+          var orig = _allUsers.indexOf(u);
+          h += '<tr style="cursor:pointer" onclick="showUser(' + orig + ')">'
+            + '<td style="color:var(--mu)">' + (i+1) + '</td>'
+            + '<td style="font-weight:600">' + esc(u.name) + '</td>'
+            + '<td style="color:var(--mu)">' + esc(u.email) + '</td>'
+            + '<td><span class="pill ' + (u.tier||'free') + '">' + (u.tier||'free').toUpperCase() + '</span></td>'
+            + '<td style="color:var(--mu)">' + esc(u.created_at||'—') + '</td>'
+            + '</tr>';
+        });
+        tbody.innerHTML = h;
+      }
+      s.scrollIntoView({behavior:'smooth'});
+    }
+  }
+
+  function showUser(idx){
+    var u = _allUsers[idx];
+    if(!u) return;
+    document.getElementById('modal-title').textContent = u.name;
+    document.getElementById('modal-body').innerHTML =
+      row('Email', u.email) +
+      row('Plan', '<span class="pill ' + (u.tier||'free') + '">' + (u.tier||'free').toUpperCase() + '</span>') +
+      row('Joined', u.created_at || '—') +
+      row('User ID', u.id || '—');
+    document.getElementById('user-modal').classList.add('open');
+  }
+
+  function closeUserModal(){
+    document.getElementById('user-modal').classList.remove('open');
+  }
+
+  function row(label, val){
+    return '<div class="modal-row"><span class="modal-label">' + label + '</span><span>' + val + '</span></div>';
+  }
+
+  function sCard(label, value, sub, cls, onclick){
+    return '<div class="stat-card' + (cls ? ' ' + cls : '') + '"'
+      + (onclick ? ' onclick="' + onclick + '"' : '') + '>'
+      + '<div class="stat-label">' + label + '</div>'
+      + '<div class="stat-value">' + value + '</div>'
+      + (sub ? '<div class="stat-sub">' + sub + '</div>' : '')
+      + '</div>';
+  }
+
+  function esc(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
