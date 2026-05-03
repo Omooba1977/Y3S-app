@@ -1,99 +1,89 @@
-// Y3S Service Worker — Network First Strategy
-// This ensures users ALWAYS get the latest version automatically
-const CACHE = 'y3s-v7';
-const CORE = ['/', '/index.html'];
+// Y3S Service Worker v6
+// Place this file at the ROOT of your GitHub Y3S-app repo (same level as index.html)
+// It will be served at y3sapp.com/sw.js by Netlify
 
+const C = 'y3s-v6';
+const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+
+// Install: cache core assets
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(CORE))
-      .then(() => self.skipWaiting()) // Activate immediately
+    caches.open(C).then(cache =>
+      Promise.allSettled(ASSETS.map(a => cache.add(a).catch(() => {})))
+    ).then(() => self.skipWaiting())
   );
 });
 
+// Activate: remove old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
-    // Delete ALL old caches immediately
     caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => k !== CACHE).map(k => {
-          console.log('Y3S SW: Deleting old cache', k);
-          return caches.delete(k);
-        })
-      ))
-      .then(() => self.clients.claim()) // Take control of all tabs immediately
-      .then(() => {
-        // Tell all open tabs to reload so they get the new version
-        return self.clients.matchAll({ type: 'window' });
-      })
-      .then(clients => {
-        clients.forEach(client => {
-          client.postMessage({ type: 'SW_UPDATED', version: CACHE });
-        });
-      })
+      .then(keys => Promise.all(keys.filter(k => k !== C).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
+// Fetch: serve cache first, update in background
+// API calls: network first, return {error:'offline'} if offline
 self.addEventListener('fetch', e => {
-  // Never intercept these — always go direct to server
-  if (e.request.url.includes('anthropic.com')) return;
-  if (e.request.url.includes('railway.app')) return;
-  if (e.request.url.includes('paystack')) return;
-  if (e.request.url.includes('googletagmanager')) return;
-  if (e.request.url.includes('analytics')) return;
+  if (e.request.method !== 'GET') return;
 
-  // For HTML pages — Network First (always get latest)
-  if (e.request.destination === 'document' || e.request.url.endsWith('.html')) {
+  // API calls — network first, offline fallback
+  if (e.request.url.includes('/api/')) {
     e.respondWith(
-      fetch(e.request)
-        .then(response => {
-          // Cache the fresh version
-          if (response.status === 200) {
-            var clone = response.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return response;
+      fetch(e.request).catch(() =>
+        new Response(JSON.stringify({ error: 'offline' }), {
+          headers: { 'Content-Type': 'application/json' }
         })
-        .catch(() => {
-          // Only use cache if network fails (offline)
-          return caches.match(e.request)
-            || caches.match('/index.html')
-            || caches.match('/');
-        })
+      )
     );
     return;
   }
 
-  // For everything else — Cache First (faster)
+  // Everything else — cache first, update in background
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(response => {
-        if (e.request.method === 'GET' && response.status === 200) {
-          var clone = response.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+      const fresh = fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          caches.open(C).then(cache => cache.put(e.request, res.clone()));
         }
-        return response;
-      }).catch(() => caches.match('/index.html'));
+        return res;
+      }).catch(() => cached || caches.match('./index.html'));
+      return cached || fresh;
+    })
+  );
+});
+
+// Notification click: open/focus the app
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const tag = e.notification.tag || '';
+  const url = tag.includes('journey') || tag.includes('streak')
+    ? '/?page=journey'
+    : tag.includes('fire')
+    ? '/?page=calculator'
+    : '/?page=dashboard';
+
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      for (var i = 0; i < cs.length; i++) {
+        if ('focus' in cs[i]) return cs[i].focus();
+      }
+      return clients.openWindow(url);
     })
   );
 });
 
 // Push notifications
 self.addEventListener('push', e => {
-  var data = e.data ? e.data.json() : { title: 'Y3S', body: 'Check in today!' };
+  const d = e.data ? e.data.json() : { title: 'Y3S', body: 'Check your financial journey' };
   e.waitUntil(
-    self.registration.showNotification(data.title || 'Y3S', {
-      body: data.body || 'Your financial freedom journey continues today 🔥',
+    self.registration.showNotification(d.title, {
+      body: d.body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      vibrate: [200, 100, 200],
-      data: { url: '/' }
+      tag: d.tag || 'y3s',
+      vibrate: [200, 100, 200, 100, 200]
     })
   );
-});
-
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
 });
