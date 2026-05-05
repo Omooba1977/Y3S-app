@@ -1,20 +1,19 @@
-// Y3S Service Worker v6
-// Place this file at the ROOT of your GitHub Y3S-app repo (same level as index.html)
-// It will be served at y3sapp.com/sw.js by Netlify
+// Y3S Service Worker v7
+// Handles offline caching + scheduled phone notifications
 
-const C = 'y3s-v6';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const C = 'y3s-v7';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
-// Install: cache core assets
+// ── Install: cache core assets ───────────────────────────
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(C).then(cache =>
-      Promise.allSettled(ASSETS.map(a => cache.add(a).catch(() => {})))
-    ).then(() => self.skipWaiting())
+    caches.open(C)
+      .then(cache => Promise.allSettled(ASSETS.map(a => cache.add(a).catch(() => {}))))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate: remove old caches
+// ── Activate: remove old caches ─────────────────────────
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
@@ -23,12 +22,9 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: serve cache first, update in background
-// API calls: network first, return {error:'offline'} if offline
+// ── Fetch: cache-first for app, network-first for API ───
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-
-  // API calls — network first, offline fallback
   if (e.request.url.includes('/api/')) {
     e.respondWith(
       fetch(e.request).catch(() =>
@@ -39,8 +35,6 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-
-  // Everything else — cache first, update in background
   e.respondWith(
     caches.match(e.request).then(cached => {
       const fresh = fetch(e.request).then(res => {
@@ -54,19 +48,16 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Notification click: open/focus the app
+// ── Notification click: open/focus app ──────────────────
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const tag = e.notification.tag || '';
   const url = tag.includes('journey') || tag.includes('streak')
     ? '/?page=journey'
-    : tag.includes('fire')
-    ? '/?page=calculator'
-    : '/?page=dashboard';
-
+    : tag.includes('fire') ? '/?page=calculator' : '/';
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
-      for (var i = 0; i < cs.length; i++) {
+      for (let i = 0; i < cs.length; i++) {
         if ('focus' in cs[i]) return cs[i].focus();
       }
       return clients.openWindow(url);
@@ -74,7 +65,22 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
-// Push notifications
+// ── Message from app: show a notification now ───────────
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
+    const { title, body, tag } = e.data;
+    self.registration.showNotification(title, {
+      body: body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: tag || 'y3s',
+      vibrate: [200, 100, 200, 100, 200],
+      requireInteraction: false
+    });
+  }
+});
+
+// ── Push (for future server-sent push) ──────────────────
 self.addEventListener('push', e => {
   const d = e.data ? e.data.json() : { title: 'Y3S', body: 'Check your financial journey' };
   e.waitUntil(
@@ -83,7 +89,7 @@ self.addEventListener('push', e => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: d.tag || 'y3s',
-      vibrate: [200, 100, 200, 100, 200]
+      vibrate: [200, 100, 200]
     })
   );
 });
